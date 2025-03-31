@@ -1,3 +1,13 @@
-*/venv
-*/dist
-*/build
+**/venv/
+
+**/dist/
+
+**/build/
+
+app/qt/__pycache__/
+
+/ui/cadastrar-art-qt/__pycache__/
+
+/env/
+
+app/utils/__pycache__/
