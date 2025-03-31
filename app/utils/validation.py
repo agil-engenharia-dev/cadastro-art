@@ -12,7 +12,7 @@ TIPOS_LOGRADOUROS = {
     "AVENIDA": "AVENIDA",
     "APARTAMENTO": "APARTAMENTO",
     "LOTEAMENTO": "LOTEAMENTO",
-    "TRAVESSA": "TRAVESSA",
+    "TRAVESSA": "TRAVESSA", 
     "AEROPORTO": "AEROPORTO",
     "ALAMEDA": "ALAMEDA",
     "AREA": "AREA",
@@ -164,7 +164,10 @@ def validarDataDoContrato(data):
         raise ValueError("DATA ERROR, FORMATO VÁLIDO = YYYY-MM-DD.")
 
 def validarLogradouro(logradouro) -> str:
+    if logradouro.isdigit():
+                return str(logradouro)  
     try:
+        
         logradouro = str(logradouro)
     except:
         raise ValueError("LOGRADOURO ERROR")
