@@ -4,7 +4,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 import time
-from utils.cliente import Cliente
+from app.utils.cliente import Cliente
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 class ClienteMA(Cliente):
@@ -22,6 +22,16 @@ class ClienteMA(Cliente):
         element_select.click()
         
         time.sleep(5)
+
+        try:
+            popup_fechar = WebDriverWait(browser, 2).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'Nunca')]"))
+            )
+            popup_fechar.click()
+        except:
+            pass  
+
+        time.sleep(2)
         try:
             element_select = WebDriverWait(browser, 5).until(
             EC.presence_of_element_located((By.ID, 'ACAOINSTITUCIONAL')))
@@ -140,15 +150,12 @@ class ClienteMA(Cliente):
 
 
         time.sleep(5)
-
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR, '#evtContratoEnderecoContainerSpecific0 > div.cad_form_cont_campo > input[type=radio]:nth-child(1)')))
-        element_select.click() #endereco
         
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'CONTRATO_VALOR0')))
         element_select.clear()
         element_select.send_keys(self.valor_do_plano)#data
+        element_select.send_keys(Keys.TAB, Keys.ARROW_UP)
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'CONTRATO_DATA0')))
@@ -210,9 +217,9 @@ class ClienteMA(Cliente):
     def login_crea(self, browser, login, senha) -> None:
         try:
             logout_button = browser.find_element(By.ID, "logout_button")
-            print("Logout button found:", logout_button)
+            print("Online!")
         except NoSuchElementException:
-            print("Logout button not found, proceeding to login.")
+            print("Offline, prosseguindo com o login!")
 
             browser.get(self.URL_LOGIN_CREA)
 
