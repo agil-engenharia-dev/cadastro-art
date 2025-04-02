@@ -1,7 +1,7 @@
 # 📝 Cadastro ART - Automação de Cadastro de ART's
 Automação desenvolvida em Python para cadastro de ART's (Anotações de Responsabilidade Técnica) nos sistemas do CREA-CE e CREA-MA.
 
-![Screenshot da Interface](docs/screenshot.png)
+![Screenshot da Interface](docs/interface_screenshot.png)
 
 ## 🚀 Funcionalidades
 
