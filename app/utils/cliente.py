@@ -1,4 +1,4 @@
-from utils.validation import *
+from app.utils.validation import *
 
 class Cliente:
     def __init__(
