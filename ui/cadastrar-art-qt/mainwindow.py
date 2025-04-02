@@ -1,6 +1,6 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog
-from ui_form import Ui_MainWindow
+from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog
+from .ui_form import Ui_MainWindow
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -38,14 +38,16 @@ class MainWindow(QMainWindow):
             self.resultado_radio_button = sender.text()
 
     def onOpenButtonClicked(self):
-        options = QFileDialog.Options()
-        file_dialog = QFileDialog(self, options=options)
-        file_dialog.setNameFilter('Todos os arquivos (*)')
-
-        if file_dialog.exec():
-            file_names = file_dialog.selectedFiles()
-            file_name = file_names[0]
-            self.ui.label.setText(f"{file_name}")
+        file_name, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Selecionar Arquivo",
+            directory="",  # Diretório inicial vazio
+            filter="Todos os arquivos (*)",  # Filtro de arquivos
+            options=QFileDialog.Option.DontUseNativeDialog  # Opções (opcional)
+        )
+        
+        if file_name:  # Verifica se um arquivo foi selecionado
+            self.ui.label.setText(file_name)
             self.ui.pushButton_cadastrar.setEnabled(True)
 
     def setFixedStyle(self):
