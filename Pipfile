@@ -6,10 +6,9 @@ name = "pypi"
 [packages]
 pandas = "*"
 selenium = "*"
-pyqt5 = "*"
-pyside6 = "*"
 openpyxl = "*"
 webdriver-manager = "*"
+PyQt6 = "*"
 
 [dev-packages]
 
