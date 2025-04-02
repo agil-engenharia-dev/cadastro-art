@@ -1,13 +1,24 @@
-**/venv/
+# Diretórios de build e ambientes virtuais
+build/
+dist/
+env/
+*.egg-info/
 
-**/dist/
+# Arquivos gerados pelo WiX Toolset
+*.wixobj
+*.wixpdb
+*.msi
 
-**/build/
+# Dependências gerenciadas pelo Pipenv
+Pipfile.lock
 
-app/qt/__pycache__/
+# Arquivos do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-/ui/cadastrar-art-qt/__pycache__/
-
-/env/
-
-app/utils/__pycache__/
+# Logs e caches
+*.log
+*.tmp
+.DS_Store
