@@ -40,7 +40,7 @@ pip install pipenv
 ```
 
 ```bash
-pipen install
+pipenv install
 ```
 
 ```bash
@@ -50,7 +50,7 @@ python -m webdriver_manager chrome
 ##▶️ Como Usar
 
 ```bash
-python app/main.py
+python -m app.main
 ```
 
 ##🔧 Build e Instalador
