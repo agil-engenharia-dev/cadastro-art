@@ -8,8 +8,8 @@ Automação desenvolvida em Python para cadastro de ART's (Anotações de Respon
 
 - ✔️ Cadastro automatizado de ART's
 - 🌐 Suporte aos sistemas:
-  - CREA-CE (https://servicos-crea-ce.sitac.com.br)
-  - CREA-MA (https://sistemas.crea-ma.gov.br)
+  - CREA-CE (https://servicos-crea-ce.sitac.com.br/index.php)
+  - CREA-MA (https://servicos-crea-ma.sitac.com.br/index.php)
 - 🖥️ Interface gráfica com PyQt6
 - 📊 Processamento de planilhas Excel
 - 🔄 Gerenciamento automático de drivers
@@ -40,7 +40,7 @@ pip install pipenv
 ```
 
 ```bash
-pipen install
+pipenv install
 ```
 
 ```bash
@@ -50,7 +50,7 @@ python -m webdriver_manager chrome
 ## ▶️ Como Usar
 
 ```bash
-python app/main.py
+python -m app.main
 ```
 
 ## 🔧 Gerando o Executável
