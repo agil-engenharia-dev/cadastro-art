@@ -43,7 +43,7 @@ class ClienteMA(Cliente):
             element_select = WebDriverWait(browser, 2).until(
             EC.presence_of_element_located((By.ID, 'NIVEL00')))
             select = Select(element_select)
-            select.select_by_value("1018")#execução
+            select.select_by_value("1010")#consultoria
         except:
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.presence_of_element_located((By.ID, 'NOVA_ATIVIDADE')))
@@ -54,12 +54,12 @@ class ClienteMA(Cliente):
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'NIVEL00')))
         select = Select(element_select)
-        select.select_by_value("1018")#execução
+        select.select_by_value("1010")#consultoria
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'ATIVIDADEPROFISSIONAL00')))
         select = Select(element_select)
-        select.select_by_value("4389")#atividade profissional
+        select.select_by_value("4348")#atividade profissional (consultoria)
         
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.presence_of_element_located(
@@ -211,6 +211,12 @@ class ClienteMA(Cliente):
         
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, "save")))
+        
+        # Espera o overlay desaparecer
+        WebDriverWait(browser, 10).until(
+            EC.invisibility_of_element_located((By.ID, "ajax-overlay"))
+        )
+        
         element_select.click() #salvar
         time.sleep(10)
 
