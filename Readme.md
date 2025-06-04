@@ -1,4 +1,5 @@
 # 📝 Cadastro ART - Automação de Cadastro de ART's
+
 Automação desenvolvida em Python para cadastro de ART's (Anotações de Responsabilidade Técnica) nos sistemas do CREA-CE e CREA-MA.
 
 ![Screenshot da Interface](docs/interface_screenshot.png)
@@ -12,7 +13,6 @@ Automação desenvolvida em Python para cadastro de ART's (Anotações de Respon
 - 🖥️ Interface gráfica com PyQt6
 - 📊 Processamento de planilhas Excel
 - 🔄 Gerenciamento automático de drivers
-- 🏗️ Gerador de instalador Windows (.msi)
 
 ## 📦 Pré-requisitos
 
@@ -47,26 +47,19 @@ pipen install
 python -m webdriver_manager chrome
 ```
 
-##▶️ Como Usar
+## ▶️ Como Usar
 
 ```bash
 python app/main.py
 ```
 
-##🔧 Build e Instalador
+## 🔧 Gerando o Executável
+
+Para gerar o executável do programa:
 
 ```bash
-python setup.py build
+pip install pyinstaller
+pyinstaller build.spec
 ```
 
-```bash
-heat dir "build/exe.win-amd64-3.12" -gg -sfrag -srd -dr INSTALLFOLDER -cg AutoArtFiles -var var.SourceDir -out AutoArtFiles.wxs
-```
-
-```bash
-candle installer.wxs AutoArtFiles.wxs -dSourceDir="build/exe.win-amd64-3.12"
-```
-
-```bash
-light installer.wixobj AutoArtFiles.wixobj -o installer.msi
-```
+O executável será gerado na pasta `dist/`.
