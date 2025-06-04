@@ -7,15 +7,20 @@ from selenium.webdriver.chrome.options import Options
 from PyQt6.QtWidgets import QApplication
 from app.utils.clienteCE import ClienteCE
 from app.utils.clienteMA import ClienteMA
+from app.utils.clienteCFT import ClienteCFT
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service 
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 import sys
 print(sys.path)
 
 ESTADOS = {
     "CE": ClienteCE,
-    "MA": ClienteMA
+    "MA": ClienteMA,
+    "CFT": ClienteCFT
 }
 
 def formatar_cpf(cpf):
@@ -108,14 +113,30 @@ if __name__ == "__main__":
    
     dataframe = pd.read_excel(dados["dir_planilha"], dtype={'CPF': str})  
     
-    clientes = extrair_clientes(dataframe, ESTADOS[dados["estado"]])
+    if dados["estado"] == "CFT":
+        # Usa a classe ClienteCFT para processar todos os usuários
+        clientes = extrair_clientes(dataframe, ClienteCFT)
+    else:
+        clientes = extrair_clientes(dataframe, ESTADOS[dados["estado"]])
 
     if input("deseja continuar? [S/N]").upper() == "S":
         browser = browserChromeFactory()
         for cliente in clientes:
             try:
                 print("número ART: " + dados["numero_art"])
-                cliente.login_crea(browser, dados["login"], dados["senha"])
+                # Verifica se já está logado
+                try:
+                    WebDriverWait(browser, 5).until(
+                        EC.presence_of_element_located((By.ID, "logout_info"))
+                    )
+                    print("Já está logado, continuando...")
+                except:
+                    # Se não estiver logado, faz o login
+                    if dados["estado"] == "CFT":
+                        cliente.login_CFT(browser, dados["login"], dados["senha"])
+                    else:
+                        cliente.login_crea(browser, dados["login"], dados["senha"])
+                
                 cliente.cadastrar(browser, dados["numero_art"])
                 print(f"\033[32mSUCESSO NO CLIENTE: {cliente.nome}\033[0m")
             except Exception as e:
