@@ -13,6 +13,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from datetime import datetime, timedelta
 
 import sys
 print(sys.path)
@@ -31,15 +32,36 @@ def formatar_cpf(cpf):
     
     return cpf.zfill(11)
 
+def validar_data_mes_anterior(data_str):
+    """Valida se a data é do mês anterior ao atual"""
+    try:
+        # Tenta primeiro o formato YYYY-MM-DD
+        try:
+            data_cliente = datetime.strptime(data_str, '%Y-%m-%d')
+        except ValueError:
+            # Se falhar, tenta o formato DD/MM/YYYY
+            data_cliente = datetime.strptime(data_str, '%d/%m/%Y')
+        
+        # Obtém a data atual
+        data_atual = datetime.now()
+        
+        # Calcula o mês anterior
+        mes_anterior = data_atual.replace(day=1) - timedelta(days=1)
+        
+        # Verifica se o mês e ano da data do cliente são iguais ao mês anterior
+        if data_cliente.month == mes_anterior.month and data_cliente.year == mes_anterior.year:
+            return True
+        return False
+    except ValueError:
+        raise ValueError("Formato de data inválido. Use DD/MM/AAAA ou AAAA-MM-DD")
+
 def extrair_clientes(dataframe, Classe):
     os.system('cls')
     colunas_para_texto = dataframe.columns
     if len(colunas_para_texto) != 12: 
         raise ValueError("\033[31mERRO NA QUANTIDADE DE COLUNAS DA PLANILHA!\033[0m")
     
-    
     dataframe[colunas_para_texto] = dataframe[colunas_para_texto].astype(str)
-    
     
     if 'CPF' in dataframe.columns:
         dataframe['CPF'] = dataframe['CPF'].apply(formatar_cpf)
@@ -49,9 +71,14 @@ def extrair_clientes(dataframe, Classe):
     clientes = []
     for data in dataframe.values:
         try:
-            
             if len(data) > 1:  
                 data[1] = formatar_cpf(data[1])
+            
+            # Valida a data antes de criar o cliente
+            if not validar_data_mes_anterior(data[5]):  # Assumindo que a data está na coluna 5
+                print(f"\033[31mData inválida para o cliente: {data[0]}. A data deve ser do mês anterior ao atual.\033[0m")
+                continue
+                
             cliente = Classe(data) 
             print(f"\033[32m{cliente.nome} - OK\033[0m")
             clientes.append(cliente)
