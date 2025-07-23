@@ -63,15 +63,51 @@ class ClienteCE(Cliente):
         select = Select(element_select)
         select.select_by_value("4139")#atividade profissional (consultoria)
         
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located(
-                (By.ID, 'LABELATUACAO00')
-            )
+
+        # 1. Clica no botão para abrir o modal
+        element_button = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.element_to_be_clickable((By.ID, 'ESCOLHERATUACAO'))
         )
-        element_select.send_keys('1', '2', '.', '7')
-        time.sleep(4)
-        xpath = "//div[@id='listaAtividadeEscolherATUACAO00']//li[1]"
-        browser.find_element(By.XPATH, xpath).click()
+        element_button.click()
+        time.sleep(1)  # Pequena pausa para garantir que a janela abriu
+        browser.switch_to.window(browser.window_handles[-1])  # Troca para o popup
+
+        # 2. Espera o botão 'Mostrar todos' e clica normalmente
+        mostrar_todos = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.presence_of_element_located((By.ID, 'exibirTodos'))
+        )
+        browser.execute_script("arguments[0].scrollIntoView();", mostrar_todos)
+        mostrar_todos.click()
+        time.sleep(1)  # Pausa para carregar todos os itens
+
+        # 4. Navega na árvore para selecionar o item desejado
+        try:
+            # Expande "12 - Eletrônica"
+            eletronica = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+                EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '12 - Eletrônica')]"))
+            )
+            browser.execute_script("arguments[0].scrollIntoView();", eletronica)
+            eletronica.click()
+            time.sleep(0.5)
+            # Expande "12.7 - Sistemas e Equipamentos de Fibras Ópticas"
+            fibras = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+                EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '12.7 - Sistemas e Equipamentos de Fibras Ópticas')]"))
+            )
+            browser.execute_script("arguments[0].scrollIntoView();", fibras)
+            fibras.click()
+            time.sleep(0.5)
+            # Seleciona o item específico
+            item_alvo = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+                EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '12.7.1 - de rede de fibra óptica')]"))
+            )
+            browser.execute_script("arguments[0].scrollIntoView();", item_alvo)
+            item_alvo.click()
+            # Após o modal fechar, volta para a janela principal
+            browser.switch_to.window(browser.window_handles[0])
+        except Exception as e:
+            print(f"Erro ao navegar na árvore: {e}")
+            raise
+
         
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'UNIDADEMEDIDA00')))
