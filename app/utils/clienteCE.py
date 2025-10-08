@@ -247,15 +247,43 @@ class ClienteCE(Cliente):
         
 
         
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-        EC.presence_of_element_located((By.ID, "save")))
-        
-        # Espera o overlay desaparecer
+        element_save = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.presence_of_element_located((By.ID, "save")))
+
+        # Tenta selecionar o select ACAOINSTITUCIONAL imediatamente acima do botão 'save'
+        try:
+            candidate = element_save.find_element(By.XPATH, "./preceding::select[@id='ACAOINSTITUCIONAL'][1]")
+            try:
+                Select(candidate).select_by_value("1")
+            except Exception:
+                # fallback via JS para forçar o value e disparar eventos
+                try:
+                    browser.execute_script("arguments[0].value='1'; arguments[0].dispatchEvent(new Event('change',{bubbles:true}));", candidate)
+                except Exception:
+                    pass
+        except Exception:
+            # fallback geral: tenta localizar qualquer select ACAOINSTITUCIONAL
+            try:
+                acao_select = WebDriverWait(browser, 2).until(
+                    EC.presence_of_element_located((By.ID, 'ACAOINSTITUCIONAL'))
+                )
+                try:
+                    Select(acao_select).select_by_value("1")
+                except Exception:
+                    try:
+                        browser.execute_script("arguments[0].value='1'; arguments[0].dispatchEvent(new Event('change',{bubbles:true}));", acao_select)
+                    except Exception:
+                        pass
+            except Exception:
+                # nada a fazer, segue
+                pass
+
+        # Espera o overlay desaparecer antes de clicar em salvar
         WebDriverWait(browser, 10).until(
             EC.invisibility_of_element_located((By.ID, "ajax-overlay"))
         )
-        
-        element_select.click() #salvar
+
+        element_save.click()  # salvar
         time.sleep(10)
 
     def login_crea(self, browser, login, senha) -> None:

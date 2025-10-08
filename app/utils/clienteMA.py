@@ -243,15 +243,41 @@ class ClienteMA(Cliente):
         
 
         
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-        EC.presence_of_element_located((By.ID, "save")))
-        
-        # Espera o overlay desaparecer
+        element_save = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.presence_of_element_located((By.ID, "save")))
+
+        # tenta selecionar o select ACAOINSTITUCIONAL imediatamente acima do botão 'save'
+        try:
+            candidate = element_save.find_element(By.XPATH, "./preceding::select[@id='ACAOINSTITUCIONAL'][1]")
+            try:
+                Select(candidate).select_by_value("11")
+            except Exception:
+                try:
+                    browser.execute_script("arguments[0].value='11'; arguments[0].dispatchEvent(new Event('change',{bubbles:true}));", candidate)
+                except Exception:
+                    pass
+        except Exception:
+            # fallback geral: tenta localizar qualquer select ACAOINSTITUCIONAL e setar value=11
+            try:
+                acao_select = WebDriverWait(browser, 2).until(
+                    EC.presence_of_element_located((By.ID, 'ACAOINSTITUCIONAL'))
+                )
+                try:
+                    Select(acao_select).select_by_value("11")
+                except Exception:
+                    try:
+                        browser.execute_script("arguments[0].value='11'; arguments[0].dispatchEvent(new Event('change',{bubbles:true}));", acao_select)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        # espera o overlay desaparecer antes de clicar em salvar
         WebDriverWait(browser, 10).until(
             EC.invisibility_of_element_located((By.ID, "ajax-overlay"))
         )
-        
-        element_select.click() #salvar
+
+        element_save.click()  # salvar
         time.sleep(10)
 
     def login_crea(self, browser, login, senha) -> None:
