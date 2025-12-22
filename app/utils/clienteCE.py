@@ -137,6 +137,12 @@ class ClienteCE(Cliente):
         EC.presence_of_element_located((By.ID, 'contratante0_CampoContratantePF')))
         element_select.clear()
         element_select.send_keys(self.cpf)#cpf
+        
+        # Aguarda o overlay desaparecer antes de clicar
+        WebDriverWait(browser, 10).until(
+            EC.invisibility_of_element_located((By.ID, "ajax-overlay"))
+        )
+        
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'session_timeout_container')))
         element_select.click()
@@ -197,6 +203,39 @@ class ClienteCE(Cliente):
 
 
         time.sleep(5)
+        
+        # Clica no botão de coordenadas para abrir o mapa
+        try:
+            btn_coordenadas = WebDriverWait(browser, 5).until(
+                EC.element_to_be_clickable((By.ID, 'ESCOLHERCORDENADASGMAP'))
+            )
+            btn_coordenadas.click()
+            time.sleep(5)  # Aguarda o mapa abrir
+            
+            # Fecha a janela do mapa para capturar as coordenadas automaticamente
+            if len(browser.window_handles) > 1:
+                browser.switch_to.window(browser.window_handles[-1])
+                browser.close()
+                browser.switch_to.window(browser.window_handles[0])
+                time.sleep(1)
+            
+            # Preenche latitude e longitude com 0
+            try:
+                latitude = WebDriverWait(browser, 3).until(
+                    EC.presence_of_element_located((By.ID, 'CONTRATO_ENDERECO_LATITUDE0'))
+                )
+                latitude.clear()
+                latitude.send_keys("0")
+                
+                longitude = WebDriverWait(browser, 3).until(
+                    EC.presence_of_element_located((By.ID, 'CONTRATO_ENDERECO_LONGITUDE0'))
+                )
+                longitude.clear()
+                longitude.send_keys("0")
+            except:
+                pass
+        except:
+            pass  # Se não encontrar o botão, continua normalmente
         
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'CONTRATO_VALOR0')))
