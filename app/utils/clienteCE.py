@@ -51,15 +51,23 @@ class ClienteCE(Cliente):
             EC.presence_of_element_located((By.ID, 'NOVA_ATIVIDADE')))
             element_select.click()
         
-       
+        time.sleep(1)
         
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'NIVEL00')))
         select = Select(element_select)
         select.select_by_value("30")#consultoria
 
+        time.sleep(2)
+        
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
         EC.presence_of_element_located((By.ID, 'ATIVIDADEPROFISSIONAL00')))
+        
+        if not element_select.is_enabled():
+            WebDriverWait(browser, 10).until(
+                lambda d: d.find_element(By.ID, 'ATIVIDADEPROFISSIONAL00').is_enabled()
+            )
+        
         select = Select(element_select)
         select.select_by_value("4139")#atividade profissional (consultoria)
         
@@ -69,40 +77,41 @@ class ClienteCE(Cliente):
             EC.element_to_be_clickable((By.ID, 'ESCOLHERATUACAO'))
         )
         element_button.click()
-        time.sleep(1)  # Pequena pausa para garantir que a janela abriu
-        browser.switch_to.window(browser.window_handles[-1])  # Troca para o popup
+        time.sleep(2)
+        
+        browser.switch_to.window(browser.window_handles[-1])
 
         # 2. Espera o botão 'Mostrar todos' e clica normalmente
-        mostrar_todos = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, 'exibirTodos'))
+        mostrar_todos = WebDriverWait(browser, 20).until(
+            EC.element_to_be_clickable((By.ID, 'exibirTodos'))
         )
         browser.execute_script("arguments[0].scrollIntoView();", mostrar_todos)
-        mostrar_todos.click()
-        time.sleep(1)  # Pausa para carregar todos os itens
+        browser.execute_script("arguments[0].click();", mostrar_todos)
+        time.sleep(2)
 
         # 4. Navega na árvore para selecionar o item desejado
         try:
-            # Expande "12 - Eletrônica"
-            eletronica = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            eletronica = WebDriverWait(browser, 20).until(
                 EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '12 - Eletrônica')]"))
             )
             browser.execute_script("arguments[0].scrollIntoView();", eletronica)
-            eletronica.click()
-            time.sleep(0.5)
-            # Expande "12.7 - Sistemas e Equipamentos de Fibras Ópticas"
-            fibras = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            browser.execute_script("arguments[0].click();", eletronica)
+            time.sleep(1)
+            
+            fibras = WebDriverWait(browser, 20).until(
                 EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '12.7 - Sistemas e Equipamentos de Fibras Ópticas')]"))
             )
             browser.execute_script("arguments[0].scrollIntoView();", fibras)
-            fibras.click()
-            time.sleep(0.5)
-            # Seleciona o item específico
-            item_alvo = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            browser.execute_script("arguments[0].click();", fibras)
+            time.sleep(1)
+            
+            item_alvo = WebDriverWait(browser, 20).until(
                 EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '12.7.1 - de rede de fibra óptica')]"))
             )
             browser.execute_script("arguments[0].scrollIntoView();", item_alvo)
-            item_alvo.click()
-            # Após o modal fechar, volta para a janela principal
+            browser.execute_script("arguments[0].click();", item_alvo)
+            time.sleep(1)
+            
             browser.switch_to.window(browser.window_handles[0])
         except Exception as e:
             print(f"Erro ao navegar na árvore: {e}")

@@ -148,8 +148,21 @@ if __name__ == "__main__":
 
     if input("deseja continuar? [S/N]").upper() == "S":
         browser = browserChromeFactory()
-        for cliente in clientes:
+        
+        for i, cliente in enumerate(clientes, 1):
             try:
+                print(f"\n{'='*60}")
+                print(f"Processando cliente {i}/{len(clientes)}: {cliente.nome}")
+                print(f"{'='*60}")
+                
+                # Verifica se o browser ainda está ativo
+                try:
+                    browser.title  # Testa se o browser está ativo
+                except:
+                    print("⚠ Navegador fechou, recriando...")
+                    browser = browserChromeFactory()
+                    print("✓ Navegador recriado")
+                
                 print("número ART: " + dados["numero_art"])
                 # Verifica se já está logado
                 try:
@@ -165,7 +178,18 @@ if __name__ == "__main__":
                         cliente.login_crea(browser, dados["login"], dados["senha"])
                 
                 cliente.cadastrar(browser, dados["numero_art"])
-                print(f"\033[32mSUCESSO NO CLIENTE: {cliente.nome}\033[0m")
+                print(f"\033[32m✓ SUCESSO NO CLIENTE: {cliente.nome}\033[0m")
             except Exception as e:
-                print(f"\033[31mERRO NO CLIENTE: {cliente.nome}\033[0m")
+                print(f"\033[31m✗ ERRO NO CLIENTE: {cliente.nome}\033[0m")
                 print(f"\033[31mDetalhes do erro: {e}\033[0m")
+                
+                # Tenta fechar e recriar o browser após erro
+                try:
+                    browser.quit()
+                except:
+                    pass
+                
+                if i < len(clientes):  # Se não for o último cliente
+                    print("\n⚠ Recriando navegador para próximo cliente...")
+                    browser = browserChromeFactory()
+                    print("✓ Navegador recriado")
