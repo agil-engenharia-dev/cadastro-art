@@ -219,19 +219,21 @@ class ClienteCE(Cliente):
                 browser.switch_to.window(browser.window_handles[0])
                 time.sleep(1)
             
-            # Preenche latitude e longitude com 0
+            # Preenche latitude e longitude com 0 apenas se estiverem vazios
             try:
                 latitude = WebDriverWait(browser, 3).until(
                     EC.presence_of_element_located((By.ID, 'CONTRATO_ENDERECO_LATITUDE0'))
                 )
-                latitude.clear()
-                latitude.send_keys("0")
+                if not latitude.get_attribute('value') or latitude.get_attribute('value').strip() == '':
+                    latitude.clear()
+                    latitude.send_keys("0")
                 
                 longitude = WebDriverWait(browser, 3).until(
                     EC.presence_of_element_located((By.ID, 'CONTRATO_ENDERECO_LONGITUDE0'))
                 )
-                longitude.clear()
-                longitude.send_keys("0")
+                if not longitude.get_attribute('value') or longitude.get_attribute('value').strip() == '':
+                    longitude.clear()
+                    longitude.send_keys("0")
             except:
                 pass
         except:
