@@ -5,6 +5,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 import time
 from app.utils.cliente import Cliente
+from app.utils.art_cep import fluxo_modal_cep, fluxo_cep_contrato
 from selenium.common.exceptions import NoSuchElementException
 
 class ClienteCE(Cliente):
@@ -162,13 +163,14 @@ class ClienteCE(Cliente):
             
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.presence_of_element_located((By.ID, 'CEP')))
-            element_select.clear()
-            element_select.send_keys(self.cep)#cep
-            
-            
-            element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "a.botao_ajaxform_adicionar")))
-            element_select.click()#botao endereco
+
+            def _click_validar_cep_modal():
+                btn = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "a.botao_ajaxform_adicionar"))
+                )
+                btn.click()
+
+            fluxo_modal_cep(browser, element_select, self, _click_validar_cep_modal, self.TIME_TO_WAIT)
             time.sleep(5)
                 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
@@ -263,14 +265,9 @@ class ClienteCE(Cliente):
         time.sleep(5)
 
         try:
-
-            if self.cep:
-                raise ValueError("CEP está preenchido")
-
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
                 EC.presence_of_element_located((By.ID, 'CONTRATO_ENDERECO_CEP0')))
-            element_select.clear()
-            element_select.send_keys(self.cep)  # cep
+            fluxo_cep_contrato(browser, element_select, self, self.TIME_TO_WAIT)
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
                 EC.presence_of_element_located((By.ID, 'CONTRATO_ENDERECO_TIPOLOGRADOURO0')))
