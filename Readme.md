@@ -55,11 +55,36 @@ python -m app.main
 
 ## 🔧 Gerando o Executável
 
-Para gerar o executável do programa:
+Use sempre o ambiente virtual do projeto para garantir que o PyInstaller empacote as dependências corretas (Selenium, PyQt6, etc.).
+
+1. Instale o PyInstaller no ambiente (se ainda não tiver):
 
 ```bash
-pip install pyinstaller
-pyinstaller build.spec
+pipenv install --dev pyinstaller
 ```
 
-O executável será gerado na pasta `dist/`.
+2. Gere o executável de uma destas formas:
+
+**Opção A — com o shell do Pipenv ativo:**
+
+```bash
+pipenv shell
+pyinstaller build.spec --noconfirm
+```
+
+**Opção B — sem entrar no shell:**
+
+```bash
+pipenv run pyinstaller build.spec --noconfirm
+```
+
+> A flag `--noconfirm` é opcional: evita a confirmação ao sobrescrever a pasta `dist/`.
+
+O executável será gerado na pasta `dist/`:
+
+| Sistema onde você builda | Arquivo gerado      |
+|--------------------------|---------------------|
+| macOS                    | `dist/auto_art_v2`  |
+| Windows                  | `dist/auto_art_v2.exe` |
+
+> O PyInstaller **não faz cross-compile**: para distribuir no Windows, o build precisa ser feito em uma máquina Windows.
