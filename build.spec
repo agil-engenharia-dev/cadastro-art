@@ -1,6 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
+
+# Selenium 4+ usa imports lazy (webdriver.Chrome); PyInstaller não os detecta sozinho.
+selenium_webdriver_imports = (
+    collect_submodules('selenium.webdriver.chrome')
+    + collect_submodules('selenium.webdriver.chromium')
+    + collect_submodules('selenium.webdriver.remote')
+    + [m for m in collect_submodules('selenium.webdriver.common') if '.devtools.' not in m]
+    + collect_submodules('selenium.webdriver.support')
+    + collect_submodules('selenium.common')
+)
 
 a = Analysis(
     ['app/main.py'],
@@ -13,35 +24,16 @@ a = Analysis(
     ],
     hiddenimports=[
         'pandas',
-        'webdriver_manager',
         'openpyxl',
-        'selenium',
+        'numpy',
+        'encodings.idna',
         'PyQt6.QtCore',
         'PyQt6.QtWidgets',
         'PyQt6.QtNetwork',
         'PyQt6.QtGui',
         'PyQt6.sip',
         'PyQt6.QtPrintSupport',
-        'selenium.webdriver',
-        'selenium.webdriver.common',
-        'selenium.webdriver.chrome',
-        'selenium.webdriver.chrome.service',
-        'selenium.webdriver.chrome.options',
-        'selenium.webdriver.remote.webelement',
-        'selenium.webdriver.support',
-        'selenium.webdriver.support.ui',
-        'selenium.webdriver.support.expected_conditions',
-        'selenium.webdriver.common.by',
-        'webdriver_manager.chrome',
-        'webdriver_manager.core',
-        'pkg_resources.py2_warn',
-        'numpy',
-        'datetime',
-        'tempfile',
-        'os',
-        'sys',
-        'encodings.idna'
-    ],
+    ] + selenium_webdriver_imports + collect_submodules('webdriver_manager'),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -1,9 +1,9 @@
-from selenium import webdriver
 import pandas as pd
 from app.qt.mainwindow import tela
 import tempfile
 import os
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
 from PyQt6.QtWidgets import QApplication
 from app.utils.clienteCE import ClienteCE
 from app.utils.clienteMA import ClienteMA
@@ -150,7 +150,7 @@ def browserChromeFactory():
     )
     
     
-    browser = webdriver.Chrome(
+    browser = ChromeWebDriver(
         service=service,
         options=chrome_options
     )
