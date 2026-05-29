@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import time
+import unicodedata
 from typing import Callable
 
 from selenium.webdriver.common.by import By
@@ -33,6 +34,22 @@ def normalize_cep_digits(cep: str | None) -> str:
     return "".join(filter(str.isdigit, str(cep or "")))
 
 
+def _normalizar_texto_cmp(s: str | None) -> str:
+    t = unicodedata.normalize("NFD", (s or "").strip().lower())
+    return "".join(c for c in t if unicodedata.category(c) != "Mn")
+
+
+def _parse_rotulo_cidade_uf(texto: str) -> tuple[str, str] | None:
+    t = (texto or "").strip()
+    if " - " not in t:
+        return None
+    cidade_parte, uf_parte = t.rsplit(" - ", 1)
+    uf = uf_parte.strip().upper()
+    if len(uf) != 2:
+        return None
+    return cidade_parte.strip(), uf
+
+
 def pode_buscar_viacep(cliente) -> bool:
     uf = (getattr(cliente, "uf", None) or "").strip()
     cidade = (getattr(cliente, "cidade", None) or "").strip()
@@ -47,6 +64,81 @@ def aguardar_overlay_invisivel(browser: WebDriver, timeout: int = 15) -> None:
         )
     except Exception:
         pass
+
+
+def selecionar_cidade_select2_modal_cep(browser: WebDriver, cliente, timeout: int = 20) -> bool:
+    """
+    Quando o CEP continua com erro na base da ART, abre o Select2 #s2id_CIDADE,
+    pesquisa pela cidade do cliente e seleciona o item que coincide com cidade e UF
+    (comparação sem acentos e case insensitive).
+    """
+    cidade_cli = _normalizar_texto_cmp(getattr(cliente, "cidade", None))
+    uf_cli = _normalizar_texto_cmp(getattr(cliente, "uf", None))
+    if len(cidade_cli) < 3 or len(uf_cli) != 2:
+        return False
+
+    aguardar_overlay_invisivel(browser, 10)
+    try:
+        container = WebDriverWait(browser, timeout).until(
+            EC.element_to_be_clickable((By.ID, "s2id_CIDADE"))
+        )
+        browser.execute_script("arguments[0].scrollIntoView({block:'center'});", container)
+        container.click()
+    except Exception:
+        return False
+
+    try:
+        search = WebDriverWait(browser, timeout).until(
+            EC.visibility_of_element_located(
+                (By.CSS_SELECTOR, "#select2-drop input.select2-input")
+            )
+        )
+        search.clear()
+        search.send_keys(getattr(cliente, "cidade", "") or "")
+    except Exception:
+        return False
+
+    time.sleep(2)
+
+    try:
+        itens = browser.find_elements(
+            By.CSS_SELECTOR,
+            "#select2-drop ul.select2-results li.select2-result-selectable",
+        )
+    except Exception:
+        return False
+
+    alvo = None
+    for li in itens:
+        try:
+            rotulo_el = li.find_element(By.CSS_SELECTOR, ".select2-user-result")
+        except Exception:
+            try:
+                rotulo_el = li.find_element(By.CSS_SELECTOR, ".select2-result-label")
+            except Exception:
+                continue
+        parsed = _parse_rotulo_cidade_uf(rotulo_el.text)
+        if not parsed:
+            continue
+        c_p, u_p = parsed
+        if _normalizar_texto_cmp(c_p) == cidade_cli and _normalizar_texto_cmp(u_p) == uf_cli:
+            alvo = li
+            break
+
+    if alvo is None:
+        return False
+
+    try:
+        browser.execute_script("arguments[0].scrollIntoView({block:'center'});", alvo)
+        alvo.click()
+    except Exception:
+        try:
+            browser.execute_script("arguments[0].click();", alvo)
+        except Exception:
+            return False
+
+    aguardar_overlay_invisivel(browser, 10)
+    return True
 
 
 def _elemento_erro_cep_visivel(browser: WebDriver) -> bool:
@@ -136,6 +228,14 @@ def fluxo_modal_cep(
         click_validar()
         time.sleep(0.5)
         aguardar_overlay_invisivel(browser, time_to_wait)
+
+    if art_cep_nao_localizado(browser, timeout=4):
+        if selecionar_cidade_select2_modal_cep(
+            browser, cliente, timeout=min(20, time_to_wait)
+        ):
+            click_validar()
+            time.sleep(0.5)
+            aguardar_overlay_invisivel(browser, time_to_wait)
 
 
 def fluxo_cep_contrato(

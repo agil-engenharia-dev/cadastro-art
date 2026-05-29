@@ -18,6 +18,8 @@ from datetime import datetime, timedelta
 import sys
 print(sys.path)
 
+from app.utils.error_report import ErrorReport
+
 ESTADOS = {
     "CE": ClienteCE,
     "MA": ClienteMA,
@@ -55,11 +57,19 @@ def validar_data_mes_anterior(data_str):
     except ValueError:
         raise ValueError("Formato de data inválido. Use DD/MM/AAAA ou AAAA-MM-DD")
 
-def extrair_clientes(dataframe, Classe):
+def extrair_clientes(dataframe, Classe, error_report: ErrorReport | None = None):
     os.system('cls')
     colunas_para_texto = dataframe.columns
     if len(colunas_para_texto) != 12: 
-        raise ValueError("\033[31mERRO NA QUANTIDADE DE COLUNAS DA PLANILHA!\033[0m")
+        msg = "\033[31mERRO NA QUANTIDADE DE COLUNAS DA PLANILHA!\033[0m"
+        if error_report is not None:
+            error_report.add(
+                row_data={},
+                etapa="validacao_planilha",
+                motivo="Quantidade de colunas inválida (esperado: 12).",
+                contexto={"colunas_encontradas": len(colunas_para_texto)},
+            )
+        raise ValueError(msg)
     
     dataframe[colunas_para_texto] = dataframe[colunas_para_texto].astype(str)
     
@@ -69,21 +79,46 @@ def extrair_clientes(dataframe, Classe):
     print("\033[34m", dataframe.head(), "\033[0m")
     
     clientes = []
-    for data in dataframe.values:
+    for idx, data in enumerate(dataframe.values):
+        row_data = dict(zip(list(dataframe.columns), list(data)))
         try:
             if len(data) > 1:  
                 data[1] = formatar_cpf(data[1])
             
             # Valida a data antes de criar o cliente
             if not validar_data_mes_anterior(data[5]):  # Assumindo que a data está na coluna 5
-                print(f"\033[31mData inválida para o cliente: {data[0]}. A data deve ser do mês anterior ao atual.\033[0m")
+                motivo = (
+                    f"Data inválida para o cliente: {data[0]}. "
+                    "A data deve ser do mês anterior ao atual."
+                )
+                print(f"\033[31m{motivo}\033[0m")
+                if error_report is not None:
+                    error_report.add(
+                        row_data=row_data,
+                        etapa="validacao_linha",
+                        motivo=motivo,
+                        contexto={"linha_index": idx, "coluna_index_data": 5},
+                    )
                 continue
                 
             cliente = Classe(data) 
+            try:
+                setattr(cliente, "_row_data", row_data)
+                setattr(cliente, "_row_index", idx)
+            except Exception:
+                pass
             print(f"\033[32m{cliente.nome} - OK\033[0m")
             clientes.append(cliente)
         except ValueError as erro:
             print(f"\033[31m {erro} no cliente : \033[34m{data}\033[0m")
+            if error_report is not None:
+                error_report.add(
+                    row_data=row_data,
+                    etapa="validacao_linha",
+                    motivo=str(erro),
+                    exception=erro,
+                    contexto={"linha_index": idx},
+                )
     return clientes
 
 def browserChromeFactory():
@@ -127,6 +162,23 @@ def browserChromeFactory():
     
     return browser
 
+def salvar_relatorio_erros(dados: dict, error_report: ErrorReport) -> None:
+    try:
+        if not dados.get("salvar_relatorio_erros"):
+            return
+        if not error_report.has_errors:
+            return
+
+        output_path = (dados.get("caminho_relatorio_erros") or "").strip()
+        formato = dados.get("formato_relatorio_erros") or "xlsx"
+        if not output_path:
+            print("\033[33mRelatório de erros habilitado, mas sem caminho de saída.\033[0m")
+            return
+
+        saved = error_report.export(output_path, formato=formato)
+        print(f"\033[33mRelatório de erros salvo em: {saved}\033[0m")
+    except Exception as e:
+        print(f"\033[31mFalha ao salvar relatório de erros: {e}\033[0m")
 
 if __name__ == "__main__":
     
@@ -139,12 +191,14 @@ if __name__ == "__main__":
         
    
     dataframe = pd.read_excel(dados["dir_planilha"], dtype={'CPF': str})  
+
+    error_report = ErrorReport(dataframe.columns)
     
     if dados["estado"] == "CFT":
         # Usa a classe ClienteCFT para processar todos os usuários
-        clientes = extrair_clientes(dataframe, ClienteCFT)
+        clientes = extrair_clientes(dataframe, ClienteCFT, error_report)
     else:
-        clientes = extrair_clientes(dataframe, ESTADOS[dados["estado"]])
+        clientes = extrair_clientes(dataframe, ESTADOS[dados["estado"]], error_report)
 
     if input("deseja continuar? [S/N]").upper() == "S":
         browser = browserChromeFactory()
@@ -173,11 +227,67 @@ if __name__ == "__main__":
                 except:
                     # Se não estiver logado, faz o login
                     if dados["estado"] == "CFT":
-                        cliente.login_CFT(browser, dados["login"], dados["senha"])
+                        try:
+                            cliente.login_CFT(browser, dados["login"], dados["senha"])
+                        except Exception as e:
+                            error_report.add(
+                                row_data=getattr(cliente, "_row_data", {}),
+                                etapa="login",
+                                motivo="Falha no login (CFT).",
+                                exception=e,
+                                contexto={
+                                    "cliente_nome": getattr(cliente, "nome", ""),
+                                    "cliente_index": i,
+                                    "estado": dados.get("estado"),
+                                },
+                            )
+                            raise
                     else:
-                        cliente.login_crea(browser, dados["login"], dados["senha"])
+                        try:
+                            cliente.login_crea(browser, dados["login"], dados["senha"])
+                        except Exception as e:
+                            error_report.add(
+                                row_data=getattr(cliente, "_row_data", {}),
+                                etapa="login",
+                                motivo="Falha no login (CREA).",
+                                exception=e,
+                                contexto={
+                                    "cliente_nome": getattr(cliente, "nome", ""),
+                                    "cliente_index": i,
+                                    "estado": dados.get("estado"),
+                                },
+                            )
+                            raise
                 
-                cliente.cadastrar(browser, dados["numero_art"])
+                try:
+                    if dados["estado"] == "CE":
+                        cliente.cadastrar(
+                            browser, dados["numero_art"], error_report=error_report
+                        )
+                    elif dados["estado"] == "MA":
+                        cliente.cadastrar(
+                            browser,
+                            dados["numero_art"],
+                            nivel_atividade=dados.get("nivel_atividade"),
+                            atividade_profissional=dados.get("atividade_profissional"),
+                            error_report=error_report,
+                        )
+                    else:
+                        cliente.cadastrar(browser, dados["numero_art"])
+                except Exception as e:
+                    error_report.add(
+                        row_data=getattr(cliente, "_row_data", {}),
+                        etapa="cadastrar",
+                        motivo="Falha durante o cadastro no site.",
+                        exception=e,
+                        contexto={
+                            "cliente_nome": getattr(cliente, "nome", ""),
+                            "cliente_index": i,
+                            "estado": dados.get("estado"),
+                            "numero_art": dados.get("numero_art"),
+                        },
+                    )
+                    raise
                 print(f"\033[32m✓ SUCESSO NO CLIENTE: {cliente.nome}\033[0m")
             except Exception as e:
                 print(f"\033[31m✗ ERRO NO CLIENTE: {cliente.nome}\033[0m")
@@ -193,3 +303,8 @@ if __name__ == "__main__":
                     print("\n⚠ Recriando navegador para próximo cliente...")
                     browser = browserChromeFactory()
                     print("✓ Navegador recriado")
+
+        salvar_relatorio_erros(dados, error_report)
+    else:
+        # Ainda permite salvar erros de validação/leitura da planilha
+        salvar_relatorio_erros(dados, error_report)

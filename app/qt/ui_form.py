@@ -13,14 +13,14 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.setEnabled(True)
-        MainWindow.resize(400, 500)
-        MainWindow.setMinimumSize(QtCore.QSize(400, 500))
-        MainWindow.setMaximumSize(QtCore.QSize(400, 500))
+        MainWindow.resize(400, 650)
+        MainWindow.setMinimumSize(QtCore.QSize(400, 650))
+        MainWindow.setMaximumSize(QtCore.QSize(400, 650))
         MainWindow.setStyleSheet("background-color:#212121;")
         MainWindow.setIconSize(QtCore.QSize(24, 24))
         self.centralwidget = QtWidgets.QWidget(parent=MainWindow)
-        self.centralwidget.setMinimumSize(QtCore.QSize(400, 500))
-        self.centralwidget.setMaximumSize(QtCore.QSize(16777215, 500))
+        self.centralwidget.setMinimumSize(QtCore.QSize(400, 650))
+        self.centralwidget.setMaximumSize(QtCore.QSize(16777215, 650))
         self.centralwidget.setObjectName("centralwidget")
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.centralwidget)
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
@@ -33,42 +33,52 @@ class Ui_MainWindow(object):
         self.label_3 = QtWidgets.QLabel(parent=self.centralwidget)
         self.label_3.setMinimumSize(QtCore.QSize(150, 50))
         self.label_3.setMaximumSize(QtCore.QSize(150, 50))
-        self.label_3.setStyleSheet("QLabel {\n"
-"    font-weight: 700;  \n"
-"    padding-left: 30px; \n"
-"    color:#fd4a24      \n"
-"}")
+        self.label_3.setStyleSheet(
+            "QLabel {\n"
+            "    font-weight: 700;  \n"
+            "    padding-left: 30px; \n"
+            "    color:#fd4a24      \n"
+            "}"
+        )
         self.label_3.setObjectName("label_3")
         self.horizontalLayout_4.addWidget(self.label_3)
         self.verticalLayout.addLayout(self.horizontalLayout_4)
         self.lineEdit_login = QtWidgets.QLineEdit(parent=self.centralwidget)
         self.lineEdit_login.setMaximumSize(QtCore.QSize(16777215, 40))
-        self.lineEdit_login.setStyleSheet(" border: 1px solid #fd4a24;\n"
-"border-radius:10px;\n"
-"padding-left:6px;\n"
-"color:#fff     ")
+        self.lineEdit_login.setStyleSheet(
+            " border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding-left:6px;\n"
+            "color:#fff     "
+        )
         self.lineEdit_login.setObjectName("lineEdit_login")
         self.verticalLayout.addWidget(self.lineEdit_login)
         self.lineEdit_senha = QtWidgets.QLineEdit(parent=self.centralwidget)
         self.lineEdit_senha.setMaximumSize(QtCore.QSize(16777215, 40))
-        self.lineEdit_senha.setStyleSheet(" border: 1px solid #fd4a24;\n"
-"border-radius:10px;\n"
-"padding-left:6px;\n"
-"color:#fff     ")
+        self.lineEdit_senha.setStyleSheet(
+            " border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding-left:6px;\n"
+            "color:#fff     "
+        )
         self.lineEdit_senha.setEchoMode(QtWidgets.QLineEdit.EchoMode.Normal)
         self.lineEdit_senha.setObjectName("lineEdit_senha")
         self.verticalLayout.addWidget(self.lineEdit_senha)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
-        self.horizontalLayout.setSizeConstraint(QtWidgets.QLayout.SizeConstraint.SetDefaultConstraint)
+        self.horizontalLayout.setSizeConstraint(
+            QtWidgets.QLayout.SizeConstraint.SetDefaultConstraint
+        )
         self.horizontalLayout.setSpacing(6)
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.pushButton = QtWidgets.QPushButton(parent=self.centralwidget)
         self.pushButton.setMinimumSize(QtCore.QSize(150, 40))
         self.pushButton.setMaximumSize(QtCore.QSize(150, 40))
-        self.pushButton.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        self.pushButton.setStyleSheet(" border: 1px solid #fd4a24;\n"
-"border-radius:10px;\n"
-"color:#fff     ")
+        self.pushButton.setCursor(
+            QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        )
+        self.pushButton.setStyleSheet(
+            " border: 1px solid #fd4a24;\n" "border-radius:10px;\n" "color:#fff     "
+        )
         self.pushButton.setObjectName("pushButton")
         self.horizontalLayout.addWidget(self.pushButton)
         self.label = QtWidgets.QLabel(parent=self.centralwidget)
@@ -78,81 +88,169 @@ class Ui_MainWindow(object):
         self.horizontalLayout.addWidget(self.label)
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_2.setSizeConstraint(QtWidgets.QLayout.SizeConstraint.SetDefaultConstraint)
+        self.horizontalLayout_2.setSizeConstraint(
+            QtWidgets.QLayout.SizeConstraint.SetDefaultConstraint
+        )
         self.horizontalLayout_2.setSpacing(45)
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
         self.radioButtonSE = QtWidgets.QRadioButton(parent=self.centralwidget)
         self.radioButtonSE.setMinimumSize(QtCore.QSize(75, 40))
         self.radioButtonSE.setMaximumSize(QtCore.QSize(75, 40))
         self.radioButtonSE.setTabletTracking(False)
-        self.radioButtonSE.setStyleSheet("color:#fff;\n"
-"border: 1px solid #fd4a24;\n"
-"border-radius:10px;\n"
-"padding: 10px;\n"
-"\n"
-"")
+        self.radioButtonSE.setStyleSheet(
+            "color:#fff;\n"
+            "border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding: 10px;\n"
+            "\n"
+            ""
+        )
         self.radioButtonSE.setObjectName("radioButtonSE")
         self.horizontalLayout_2.addWidget(self.radioButtonSE)
         self.radioButtonMA = QtWidgets.QRadioButton(parent=self.centralwidget)
         self.radioButtonMA.setMinimumSize(QtCore.QSize(75, 40))
         self.radioButtonMA.setMaximumSize(QtCore.QSize(75, 40))
-        self.radioButtonMA.setStyleSheet("border: 1px solid #fd4a24;\n"
-"border-radius:10px;\n"
-"padding: 10px;\n"
-"color:#fff;")
+        self.radioButtonMA.setStyleSheet(
+            "border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding: 10px;\n"
+            "color:#fff;"
+        )
         self.radioButtonMA.setObjectName("radioButtonMA")
         self.horizontalLayout_2.addWidget(self.radioButtonMA)
         self.radioButtonCE = QtWidgets.QRadioButton(parent=self.centralwidget)
         self.radioButtonCE.setMinimumSize(QtCore.QSize(75, 40))
         self.radioButtonCE.setMaximumSize(QtCore.QSize(75, 40))
-        self.radioButtonCE.setStyleSheet("border: 1px solid #fd4a24;\n"
-"border-radius:10px;\n"
-"padding: 10px;\n"
-"color:#fff;")
+        self.radioButtonCE.setStyleSheet(
+            "border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding: 10px;\n"
+            "color:#fff;"
+        )
         self.radioButtonCE.setObjectName("radioButtonCE")
         self.horizontalLayout_2.addWidget(self.radioButtonCE)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         self.lineEdit = QtWidgets.QLineEdit(parent=self.centralwidget)
         self.lineEdit.setMaximumSize(QtCore.QSize(16777215, 40))
-        self.lineEdit.setStyleSheet(" border: 1px solid #fd4a24;\n"
-"border-radius:10px;\n"
-"padding-left:6px;\n"
-"color:#fff     ")
+        self.lineEdit.setStyleSheet(
+            " border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding-left:6px;\n"
+            "color:#fff     "
+        )
         self.lineEdit.setObjectName("lineEdit")
         self.verticalLayout.addWidget(self.lineEdit)
+        self.lineEdit_nivel_atividade = QtWidgets.QLineEdit(parent=self.centralwidget)
+        self.lineEdit_nivel_atividade.setMaximumSize(QtCore.QSize(16777215, 40))
+        self.lineEdit_nivel_atividade.setStyleSheet(
+            " border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding-left:6px;\n"
+            "color:#fff     "
+        )
+        self.lineEdit_nivel_atividade.setObjectName("lineEdit_nivel_atividade")
+        self.verticalLayout.addWidget(self.lineEdit_nivel_atividade)
+        self.lineEdit_atividade_profissional = QtWidgets.QLineEdit(parent=self.centralwidget)
+        self.lineEdit_atividade_profissional.setMaximumSize(QtCore.QSize(16777215, 40))
+        self.lineEdit_atividade_profissional.setStyleSheet(
+            " border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding-left:6px;\n"
+            "color:#fff     "
+        )
+        self.lineEdit_atividade_profissional.setObjectName("lineEdit_atividade_profissional")
+        self.verticalLayout.addWidget(self.lineEdit_atividade_profissional)
+        self.checkBox_salvar_erros = QtWidgets.QCheckBox(parent=self.centralwidget)
+        self.checkBox_salvar_erros.setStyleSheet("color:#fff;")
+        self.checkBox_salvar_erros.setObjectName("checkBox_salvar_erros")
+        self.verticalLayout.addWidget(self.checkBox_salvar_erros)
+        self.comboBox_formato_erros = QtWidgets.QComboBox(parent=self.centralwidget)
+        self.comboBox_formato_erros.setMaximumSize(QtCore.QSize(16777215, 40))
+        self.comboBox_formato_erros.setStyleSheet(
+            "QComboBox {\n"
+            "    border: 1px solid #fd4a24;\n"
+            "    border-radius: 10px;\n"
+            "    padding-left: 6px;\n"
+            "    padding-right: 28px;\n"
+            "    background-color: #555555;\n"
+            "    color: #ffffff;\n"
+            "}\n"
+            "QComboBox:disabled {\n"
+            "    background-color: #3d3d3d;\n"
+            "    color: #9a9a9a;\n"
+            "}\n"
+            "QComboBox QAbstractItemView {\n"
+            "    background-color: #555555;\n"
+            "    color: #ffffff;\n"
+            "    selection-background-color: #fd4a24;\n"
+            "    selection-color: #ffffff;\n"
+            "    outline: 0;\n"
+            "}\n"
+        )
+        self.comboBox_formato_erros.setObjectName("comboBox_formato_erros")
+        self.verticalLayout.addWidget(self.comboBox_formato_erros)
+        self.horizontalLayout_erros = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_erros.setObjectName("horizontalLayout_erros")
+        self.lineEdit_caminho_erros = QtWidgets.QLineEdit(parent=self.centralwidget)
+        self.lineEdit_caminho_erros.setMaximumSize(QtCore.QSize(16777215, 40))
+        self.lineEdit_caminho_erros.setStyleSheet(
+            " border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding-left:6px;\n"
+            "background-color:#555555;\n"
+            "color:#fff     "
+        )
+        self.lineEdit_caminho_erros.setObjectName("lineEdit_caminho_erros")
+        self.horizontalLayout_erros.addWidget(self.lineEdit_caminho_erros)
+        self.pushButton_caminho_erros = QtWidgets.QPushButton(parent=self.centralwidget)
+        self.pushButton_caminho_erros.setMinimumSize(QtCore.QSize(120, 40))
+        self.pushButton_caminho_erros.setMaximumSize(QtCore.QSize(120, 40))
+        self.pushButton_caminho_erros.setCursor(
+            QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        )
+        self.pushButton_caminho_erros.setStyleSheet(
+            " border: 1px solid #fd4a24;\n" "border-radius:10px;\n" "color:#fff     "
+        )
+        self.pushButton_caminho_erros.setObjectName("pushButton_caminho_erros")
+        self.horizontalLayout_erros.addWidget(self.pushButton_caminho_erros)
+        self.verticalLayout.addLayout(self.horizontalLayout_erros)
         self.pushButton_cadastrar = QtWidgets.QPushButton(parent=self.centralwidget)
         self.pushButton_cadastrar.setEnabled(False)
         self.pushButton_cadastrar.setMaximumSize(QtCore.QSize(16777215, 40))
-        self.pushButton_cadastrar.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        self.pushButton_cadastrar.setStyleSheet("QPushButton {\n"
-"    background: qlineargradient(\n"
-"        spread: pad, x1: 0, y1: 0.5, x2: 1, y2: 0.5,\n"
-"        stop: 0 rgba(253, 74, 36, 1),\n"
-"        stop: 0.44 rgba(255, 126, 0, 1),\n"
-"        stop: 1 rgba(225, 73, 0, 1)\n"
-"    );\n"
-"    color: white;\n"
-"    border-radius: 10px;\n"
-"    font-size: 16px;\n"
-"    font-weight: 700;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background: qlineargradient(\n"
-"        spread: pad, x1: 0, y1: 0.5, x2: 1, y2: 0.5,\n"
-"        stop: 0 rgba(253, 84, 46, 1),\n"
-"        stop: 0.44 rgba(255, 136, 10, 1),\n"
-"        stop: 1 rgba(235, 83, 10, 1)\n"
-"    );\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background: qlineargradient(\n"
-"        spread: pad, x1: 0, y1: 0.5, x2: 1, y2: 0.5,\n"
-"        stop: 0 rgba(243, 64, 26, 1),\n"
-"        stop: 0.44 rgba(245, 116, 0, 1),\n"
-"        stop: 1 rgba(215, 63, 0, 1)\n"
-"    );\n"
-"}\n"
-"")
+        self.pushButton_cadastrar.setCursor(
+            QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        )
+        self.pushButton_cadastrar.setStyleSheet(
+            "QPushButton {\n"
+            "    background: qlineargradient(\n"
+            "        spread: pad, x1: 0, y1: 0.5, x2: 1, y2: 0.5,\n"
+            "        stop: 0 rgba(253, 74, 36, 1),\n"
+            "        stop: 0.44 rgba(255, 126, 0, 1),\n"
+            "        stop: 1 rgba(225, 73, 0, 1)\n"
+            "    );\n"
+            "    color: white;\n"
+            "    border-radius: 10px;\n"
+            "    font-size: 16px;\n"
+            "    font-weight: 700;\n"
+            "}\n"
+            "QPushButton:hover {\n"
+            "    background: qlineargradient(\n"
+            "        spread: pad, x1: 0, y1: 0.5, x2: 1, y2: 0.5,\n"
+            "        stop: 0 rgba(253, 84, 46, 1),\n"
+            "        stop: 0.44 rgba(255, 136, 10, 1),\n"
+            "        stop: 1 rgba(235, 83, 10, 1)\n"
+            "    );\n"
+            "}\n"
+            "QPushButton:pressed {\n"
+            "    background: qlineargradient(\n"
+            "        spread: pad, x1: 0, y1: 0.5, x2: 1, y2: 0.5,\n"
+            "        stop: 0 rgba(243, 64, 26, 1),\n"
+            "        stop: 0.44 rgba(245, 116, 0, 1),\n"
+            "        stop: 1 rgba(215, 63, 0, 1)\n"
+            "    );\n"
+            "}\n"
+            ""
+        )
         self.pushButton_cadastrar.setIconSize(QtCore.QSize(0, 0))
         self.pushButton_cadastrar.setObjectName("pushButton_cadastrar")
         self.verticalLayout.addWidget(self.pushButton_cadastrar)
@@ -165,7 +263,9 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "AUTO ART/CRF"))
-        MainWindow.setWhatsThis(_translate("MainWindow", "<html><head/><body><p><br/></p></body></html>"))
+        MainWindow.setWhatsThis(
+            _translate("MainWindow", "<html><head/><body><p><br/></p></body></html>")
+        )
         self.label_3.setText(_translate("MainWindow", "AUTO ART v2.0"))
         self.lineEdit_login.setPlaceholderText(_translate("MainWindow", "LOGIN"))
         self.lineEdit_senha.setPlaceholderText(_translate("MainWindow", "SENHA"))
@@ -175,4 +275,26 @@ class Ui_MainWindow(object):
         self.radioButtonMA.setText(_translate("MainWindow", "MA"))
         self.radioButtonCE.setText(_translate("MainWindow", "CE"))
         self.lineEdit.setPlaceholderText(_translate("MainWindow", "Número da ART"))
+        self.lineEdit_nivel_atividade.setPlaceholderText(
+            _translate("MainWindow", "Nível Atividade (ex: 16 - Execução)")
+        )
+        self.lineEdit_nivel_atividade.setText(_translate("MainWindow", "16 - Execução"))
+        self.lineEdit_atividade_profissional.setPlaceholderText(
+            _translate(
+                "MainWindow",
+                "Atividade profissional (ex: 55 - Execução de serviço técnico)",
+            )
+        )
+        self.lineEdit_atividade_profissional.setText(
+            _translate("MainWindow", "55 - Execução de serviço técnico")
+        )
+        self.checkBox_salvar_erros.setText(
+            _translate("MainWindow", "Salvar relatório de erros")
+        )
+        self.comboBox_formato_erros.addItem(_translate("MainWindow", "Excel (.xlsx)"))
+        self.comboBox_formato_erros.addItem(_translate("MainWindow", "CSV (.csv)"))
+        self.lineEdit_caminho_erros.setPlaceholderText(
+            _translate("MainWindow", "Caminho do relatório (opcional)")
+        )
+        self.pushButton_caminho_erros.setText(_translate("MainWindow", "Salvar em..."))
         self.pushButton_cadastrar.setText(_translate("MainWindow", "CADASTRAR"))
