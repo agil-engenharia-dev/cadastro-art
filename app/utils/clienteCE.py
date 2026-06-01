@@ -2,11 +2,19 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select
 import time
 from app.utils.cliente import Cliente
-from app.utils.art_cep import fluxo_modal_cep, fluxo_cep_contrato
+from app.utils.art_cep import (
+    aguardar_overlay_invisivel,
+    fluxo_modal_cep,
+    fluxo_cep_contrato,
+)
 from app.utils.error_report import ErrorReport
+from app.utils.selenium_actions import (
+    clicar_seguro,
+    preencher_seguro,
+    selecionar_por_valor_seguro,
+)
 from selenium.common.exceptions import NoSuchElementException
 
 
@@ -20,11 +28,18 @@ class ClienteCE(Cliente):
 
     def cadastrar(self, browser, numero_art, error_report: ErrorReport | None = None):
         browser.get(self.URL_ART + numero_art)
+        try:
+            browser.maximize_window()
+        except Exception:
+            pass
 
+        aguardar_overlay_invisivel(browser)
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, f"cadastrarContratoArt{numero_art}"))
+            EC.element_to_be_clickable(
+                (By.ID, f"cadastrarContratoArt{numero_art}")
+            )
         )
-        element_select.click()
+        clicar_seguro(browser, element_select)
 
         time.sleep(5)
 
@@ -34,7 +49,7 @@ class ClienteCE(Cliente):
                     (By.XPATH, "//button[contains(text(),'Nunca')]")
                 )
             )
-            popup_fechar.click()
+            clicar_seguro(browser, popup_fechar)
         except:
             pass
 
@@ -43,8 +58,7 @@ class ClienteCE(Cliente):
             element_select = WebDriverWait(browser, 5).until(
                 EC.presence_of_element_located((By.ID, "ACAOINSTITUCIONAL"))
             )
-            select = Select(element_select)
-            select.select_by_value("11")  # nao optante
+            selecionar_por_valor_seguro(browser, element_select, "11")  # nao optante
         except:
             pass
 
@@ -52,21 +66,19 @@ class ClienteCE(Cliente):
             element_select = WebDriverWait(browser, 2).until(
                 EC.presence_of_element_located((By.ID, "NIVEL00"))
             )
-            select = Select(element_select)
-            select.select_by_value("30")  # consultoria
+            selecionar_por_valor_seguro(browser, element_select, "30")  # consultoria
         except:
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "NOVA_ATIVIDADE"))
+                EC.element_to_be_clickable((By.ID, "NOVA_ATIVIDADE"))
             )
-            element_select.click()
+            clicar_seguro(browser, element_select)
 
         time.sleep(1)
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.presence_of_element_located((By.ID, "NIVEL00"))
         )
-        select = Select(element_select)
-        select.select_by_value("30")  # consultoria
+        selecionar_por_valor_seguro(browser, element_select, "30")  # consultoria
 
         time.sleep(2)
 
@@ -79,14 +91,15 @@ class ClienteCE(Cliente):
                 lambda d: d.find_element(By.ID, "ATIVIDADEPROFISSIONAL00").is_enabled()
             )
 
-        select = Select(element_select)
-        select.select_by_value("4139")  # atividade profissional (consultoria)
+        selecionar_por_valor_seguro(
+            browser, element_select, "4139"
+        )  # atividade profissional (consultoria)
 
-        # 1. Clica no botão para abrir o modal
+        aguardar_overlay_invisivel(browser)
         element_button = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.element_to_be_clickable((By.ID, "ESCOLHERATUACAO"))
         )
-        element_button.click()
+        clicar_seguro(browser, element_button)
         time.sleep(2)
 
         browser.switch_to.window(browser.window_handles[-1])
@@ -142,49 +155,47 @@ class ClienteCE(Cliente):
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.presence_of_element_located((By.ID, "UNIDADEMEDIDA00"))
         )
-        select = Select(element_select)
-        select.select_by_value("18924748")  # unidade de medida
+        selecionar_por_valor_seguro(
+            browser, element_select, "18924748"
+        )  # unidade de medida
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "QUANTIDADE00"))
+            EC.element_to_be_clickable((By.ID, "QUANTIDADE00"))
         )
-        element_select.clear()
-        element_select.send_keys("1,00")  # quantidade
+        preencher_seguro(browser, element_select, "1,00")  # quantidade
+
+        aguardar_overlay_invisivel(browser)
+        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.element_to_be_clickable((By.ID, "contratante0_ContratantePF"))
+        )
+        clicar_seguro(browser, element_select)  # contratante
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "contratante0_ContratantePF"))
+            EC.element_to_be_clickable((By.ID, "contratante0_CampoContratantePF"))
         )
-        element_select.click()  # contratante
+        preencher_seguro(browser, element_select, self.cpf)  # cpf
 
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "contratante0_CampoContratantePF"))
-        )
-        element_select.clear()
-        element_select.send_keys(self.cpf)  # cpf
+        aguardar_overlay_invisivel(browser)
 
-        # Aguarda o overlay desaparecer antes de clicar
-        WebDriverWait(browser, 10).until(
-            EC.invisibility_of_element_located((By.ID, "ajax-overlay"))
-        )
-
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "session_timeout_container"))
-        )
-        element_select.click()
+        try:
+            element_select = browser.find_element(By.ID, "session_timeout_container")
+            if element_select.is_displayed():
+                clicar_seguro(browser, element_select)
+        except Exception:
+            pass
 
         try:
             element_select = WebDriverWait(browser, 5).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "a.botao_adicionar"))
             )
-            element_select.click()  # cadastrar contratante
+            clicar_seguro(browser, element_select)  # cadastrar contratante
             browser.switch_to.window(browser.window_handles[-1])
             browser.maximize_window()
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
                 EC.presence_of_element_located((By.ID, "NOME"))
             )
-            element_select.clear()
-            element_select.send_keys(self.nome)  # nome
+            preencher_seguro(browser, element_select, self.nome)  # nome
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
                 EC.presence_of_element_located((By.ID, "CEP"))
@@ -196,7 +207,7 @@ class ClienteCE(Cliente):
                         (By.CSS_SELECTOR, "a.botao_ajaxform_adicionar")
                     )
                 )
-                btn.click()
+                clicar_seguro(browser, btn)
 
             fluxo_modal_cep(
                 browser,
@@ -210,31 +221,29 @@ class ClienteCE(Cliente):
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
                 EC.presence_of_element_located((By.ID, "TIPOLOGRADOURO"))
             )
-            select = Select(element_select)
-            select.select_by_value(self.tipo_de_logradouro)  # tipo_de_logradouro
+            selecionar_por_valor_seguro(
+                browser, element_select, self.tipo_de_logradouro
+            )  # tipo_de_logradouro
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "LOGRADOURO"))
+                EC.element_to_be_clickable((By.ID, "LOGRADOURO"))
             )
-            element_select.clear()
-            element_select.send_keys(self.logradouro)  # logradouro
+            preencher_seguro(browser, element_select, self.logradouro)  # logradouro
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "ENDERECO_NUMERO"))
+                EC.element_to_be_clickable((By.ID, "ENDERECO_NUMERO"))
             )
-            element_select.clear()
-            element_select.send_keys(self.numero)  # numero
+            preencher_seguro(browser, element_select, self.numero)  # numero
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "BAIRRO"))
+                EC.element_to_be_clickable((By.ID, "BAIRRO"))
             )
-            element_select.clear()
-            element_select.send_keys(self.bairro)  # bairro
+            preencher_seguro(browser, element_select, self.bairro)  # bairro
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "save"))
+                EC.element_to_be_clickable((By.ID, "save"))
             )
-            element_select.click()
+            clicar_seguro(browser, element_select)
 
             browser.switch_to.window(browser.window_handles[0])
 
@@ -282,7 +291,7 @@ class ClienteCE(Cliente):
             btn_coordenadas = WebDriverWait(browser, 5).until(
                 EC.element_to_be_clickable((By.ID, "ESCOLHERCORDENADASGMAP"))
             )
-            btn_coordenadas.click()
+            clicar_seguro(browser, btn_coordenadas)
             time.sleep(5)  # Aguarda o mapa abrir
 
             # Fecha a janela do mapa para capturar as coordenadas automaticamente
@@ -323,29 +332,25 @@ class ClienteCE(Cliente):
             pass  # Se não encontrar o botão, continua normalmente
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "CONTRATO_VALOR0"))
+            EC.element_to_be_clickable((By.ID, "CONTRATO_VALOR0"))
         )
-        element_select.clear()
-        element_select.send_keys(self.valor_do_plano)  # data
+        preencher_seguro(browser, element_select, self.valor_do_plano)
         element_select.send_keys(Keys.TAB, Keys.ARROW_UP)
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "CONTRATO_DATA0"))
+            EC.element_to_be_clickable((By.ID, "CONTRATO_DATA0"))
         )
-        element_select.clear()
-        element_select.send_keys(self.data)  # data inicio
+        preencher_seguro(browser, element_select, self.data)
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "CONTRATO_DATAINICIO0"))
+            EC.element_to_be_clickable((By.ID, "CONTRATO_DATAINICIO0"))
         )
-        element_select.clear()
-        element_select.send_keys(self.data)  # data inicio
+        preencher_seguro(browser, element_select, self.data)
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "CONTRATO_DATAFIM0"))
+            EC.element_to_be_clickable((By.ID, "CONTRATO_DATAFIM0"))
         )
-        element_select.clear()
-        element_select.send_keys(self.data)  # data fim
+        preencher_seguro(browser, element_select, self.data)
 
         time.sleep(5)
 
@@ -360,26 +365,24 @@ class ClienteCE(Cliente):
                     (By.ID, "CONTRATO_ENDERECO_TIPOLOGRADOURO0")
                 )
             )
-            select = Select(element_select)
-            select.select_by_value(self.tipo_de_logradouro)  # tipo_de_logradouro
+            selecionar_por_valor_seguro(
+                browser, element_select, self.tipo_de_logradouro
+            )  # tipo_de_logradouro
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "CONTRATO_ENDERECO_LOGRADOURO0"))
+                EC.element_to_be_clickable((By.ID, "CONTRATO_ENDERECO_LOGRADOURO0"))
             )
-            element_select.clear()
-            element_select.send_keys(self.logradouro)  # logradouro
+            preencher_seguro(browser, element_select, self.logradouro)  # logradouro
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "CONTRATO_ENDERECO_NUMERO0"))
+                EC.element_to_be_clickable((By.ID, "CONTRATO_ENDERECO_NUMERO0"))
             )
-            element_select.clear()
-            element_select.send_keys(self.numero)  # numero
+            preencher_seguro(browser, element_select, self.numero)  # numero
 
             element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "CONTRATO_ENDERECO_BAIRRO0"))
+                EC.element_to_be_clickable((By.ID, "CONTRATO_ENDERECO_BAIRRO0"))
             )
-            element_select.clear()
-            element_select.send_keys(self.bairro)  # bairro
+            preencher_seguro(browser, element_select, self.bairro)  # bairro
 
         except:
             pass
@@ -393,43 +396,21 @@ class ClienteCE(Cliente):
             candidate = element_save.find_element(
                 By.XPATH, "./preceding::select[@id='ACAOINSTITUCIONAL'][1]"
             )
-            try:
-                Select(candidate).select_by_value("1")
-            except Exception as e:
-                # fallback via JS para forçar o value e disparar eventos
-                try:
-                    browser.execute_script(
-                        "arguments[0].value='1'; arguments[0].dispatchEvent(new Event('change',{bubbles:true}));",
-                        candidate,
-                    )
-                except Exception as ex:
-                    pass
-        except Exception as e:
-            # fallback geral: tenta localizar qualquer select ACAOINSTITUCIONAL
+            selecionar_por_valor_seguro(browser, candidate, "1")
+        except Exception:
             try:
                 acao_select = WebDriverWait(browser, 2).until(
                     EC.presence_of_element_located((By.ID, "ACAOINSTITUCIONAL"))
                 )
-                try:
-                    Select(acao_select).select_by_value("1")
-                except Exception as ex:
-                    try:
-                        browser.execute_script(
-                            "arguments[0].value='1'; arguments[0].dispatchEvent(new Event('change',{bubbles:true}));",
-                            acao_select,
-                        )
-                    except Exception as exp:
-                        pass
-            except Exception as exp:
-                # nada a fazer, segue
+                selecionar_por_valor_seguro(browser, acao_select, "1")
+            except Exception:
                 pass
 
-        # Espera o overlay desaparecer antes de clicar em salvar
-        WebDriverWait(browser, 10).until(
-            EC.invisibility_of_element_located((By.ID, "ajax-overlay"))
+        aguardar_overlay_invisivel(browser)
+        element_save = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.element_to_be_clickable((By.ID, "save"))
         )
-
-        element_save.click()  # salvar
+        clicar_seguro(browser, element_save)  # salvar
         time.sleep(10)
 
     def login_crea(self, browser, login, senha) -> None:
@@ -448,12 +429,12 @@ class ClienteCE(Cliente):
                 EC.presence_of_element_located((By.ID, "senha"))
             )
             login_button = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "enviar"))
+                EC.element_to_be_clickable((By.ID, "enviar"))
             )
 
-            cpf_input.send_keys(login)
-            senha_input.send_keys(senha)
-            login_button.click()
+            preencher_seguro(browser, cpf_input, login)
+            preencher_seguro(browser, senha_input, senha)
+            clicar_seguro(browser, login_button)
 
             WebDriverWait(browser, self.TIME_TO_WAIT).until(
                 EC.presence_of_element_located((By.ID, "logout_button"))

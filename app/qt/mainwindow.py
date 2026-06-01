@@ -63,11 +63,10 @@ class MainWindow(QMainWindow):
         return caminho
 
     def _init_relatorio_erros_ui(self):
-        # Defaults
+        # Relatório de erros ativo por padrão (sempre gravado quando houver falhas)
         self.ui.comboBox_formato_erros.setCurrentIndex(0)  # Excel
-        self.ui.comboBox_formato_erros.setEnabled(False)
-        self.ui.lineEdit_caminho_erros.setEnabled(False)
-        self.ui.pushButton_caminho_erros.setEnabled(False)
+        self.ui.checkBox_salvar_erros.setChecked(True)
+        self.onSalvarErrosToggled(True)
 
     def _init_campos_ma_ui(self):
         if not self.ui.lineEdit_nivel_atividade.text().strip():

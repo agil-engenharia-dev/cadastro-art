@@ -116,7 +116,7 @@ def validarCep(cep) -> str:
     cep = "".join(filter(str.isdigit, stringCep))
     if len(cep) != 8:
         raise ValueError("CEP ERROR")
-    return stringCep
+    return cep
 
 def validarTipoDeLogradouro(tipo_de_logradouro) -> str:
     try:

@@ -87,7 +87,11 @@ class ErrorReport:
                 {
                     "exception_type": type(exception).__name__,
                     "exception_message": _safe_str(exception),
-                    "traceback": traceback.format_exc(),
+                    "traceback": "".join(
+                        traceback.format_exception(
+                            type(exception), exception, exception.__traceback__
+                        )
+                    ),
                 }
             )
 
@@ -128,4 +132,108 @@ class ErrorReport:
             return out
 
         raise ValueError("Formato inválido. Use 'xlsx' ou 'csv'.")
+
+
+def resolver_caminho_relatorio(dados: Dict[str, Any]) -> Path:
+    """
+    Define o caminho do relatório (uma vez por execução) e reutiliza nas gravações
+    incrementais. Usa caminho informado na UI; senão, gera ao lado da planilha.
+    """
+    cached = (dados.get("_caminho_relatorio_efetivo") or "").strip()
+    if cached:
+        return Path(cached).expanduser()
+
+    explicit = (dados.get("caminho_relatorio_erros") or "").strip()
+    fmt = (dados.get("formato_relatorio_erros") or "xlsx").strip().lower()
+    ext = ".xlsx" if fmt in {"xlsx", "excel"} else ".csv"
+
+    if explicit:
+        path = Path(explicit).expanduser()
+        if path.suffix.lower() not in {".xlsx", ".csv"}:
+            path = path.with_suffix(ext)
+    else:
+        planilha = (dados.get("dir_planilha") or "").strip()
+        base = Path.cwd()
+        if planilha:
+            try:
+                parent = Path(planilha).expanduser().parent
+                if parent.is_dir():
+                    base = parent
+            except Exception:
+                pass
+        try:
+            base.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            base = Path.cwd()
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        path = base / f"erros_cadastro_{ts}{ext}"
+
+    dados["_caminho_relatorio_efetivo"] = str(path)
+    return path
+
+
+def persistir_relatorio_erros(
+    dados: Dict[str, Any], error_report: ErrorReport
+) -> Optional[Path]:
+    """
+    Grava o relatório sempre que houver erros registrados (independente do checkbox).
+    Pode ser chamado várias vezes na mesma execução (sobrescreve o mesmo arquivo).
+    """
+    if not error_report.has_errors:
+        return None
+
+    formato = dados.get("formato_relatorio_erros") or "xlsx"
+    try:
+        output_path = resolver_caminho_relatorio(dados)
+        saved = error_report.export(str(output_path), formato=formato)
+        print(f"\033[33mRelatório de erros salvo em: {saved}\033[0m")
+        return saved
+    except Exception as e:
+        print(f"\033[31mFalha ao salvar relatório de erros: {e}\033[0m")
+        try:
+            fallback = Path.cwd() / f"erros_cadastro_fallback_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            saved = error_report.export(str(fallback), formato="csv")
+            print(f"\033[33mRelatório de erros salvo (fallback) em: {saved}\033[0m")
+            return saved
+        except Exception as e2:
+            print(f"\033[31mFalha ao salvar relatório de erros (fallback): {e2}\033[0m")
+            return None
+
+
+def registrar_erro_cliente(
+    error_report: ErrorReport,
+    cliente: Any,
+    *,
+    etapa: str,
+    motivo: str,
+    exception: Optional[BaseException] = None,
+    contexto: Optional[Dict[str, Any]] = None,
+    dados: Optional[Dict[str, Any]] = None,
+    persistir: bool = True,
+) -> None:
+    """Registra erro do cliente, evita duplicata na mesma iteração e persiste o relatório."""
+    if getattr(cliente, "_erro_registrado", False):
+        if persistir and dados is not None:
+            persistir_relatorio_erros(dados, error_report)
+        return
+
+    row_data = getattr(cliente, "_row_data", {})
+    ctx = dict(contexto or {})
+    ctx.setdefault("cliente_nome", getattr(cliente, "nome", ""))
+    ctx.setdefault("cliente_index", getattr(cliente, "_row_index", None))
+
+    error_report.add(
+        row_data=row_data,
+        etapa=etapa,
+        motivo=motivo,
+        exception=exception,
+        contexto=ctx,
+    )
+    try:
+        cliente._erro_registrado = True
+    except Exception:
+        pass
+
+    if persistir and dados is not None:
+        persistir_relatorio_erros(dados, error_report)
 
