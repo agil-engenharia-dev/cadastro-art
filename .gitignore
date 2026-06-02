@@ -3,6 +3,7 @@ build/
 dist/
 env/
 *.egg-info/
+credenciais_login.json
 
 # Arquivos gerados pelo WiX Toolset
 *.wixobj

@@ -1,10 +1,12 @@
 from datetime import date, datetime
 import unicodedata
 
+
 def remove_accentuation(word):
     return "".join(
         c for c in unicodedata.normalize("NFD", word) if unicodedata.category(c) != "Mn"
     )
+
 
 TIPOS_LOGRADOUROS = {
     "": "",
@@ -12,7 +14,7 @@ TIPOS_LOGRADOUROS = {
     "AVENIDA": "AVENIDA",
     "APARTAMENTO": "APARTAMENTO",
     "LOTEAMENTO": "LOTEAMENTO",
-    "TRAVESSA": "TRAVESSA", 
+    "TRAVESSA": "TRAVESSA",
     "AEROPORTO": "AEROPORTO",
     "ALAMEDA": "ALAMEDA",
     "AREA": "AREA",
@@ -72,6 +74,67 @@ def validarNome(nome) -> str:
     nome = nome.title()
     return nome
 
+
+def extrair_digitos_documento(documento) -> str:
+    try:
+        return "".join(filter(str.isdigit, str(documento)))
+    except Exception:
+        raise ValueError("CPF ERROR")
+
+
+def eh_pessoa_juridica(documento) -> bool:
+    return len(extrair_digitos_documento(documento)) > 11
+
+
+def validarCnpj(cnpj) -> str:
+    try:
+        string_cnpj = str(cnpj)
+    except Exception:
+        raise ValueError("CNPJ ERROR")
+    digitos = extrair_digitos_documento(string_cnpj)
+    if len(digitos) != 14:
+        raise ValueError("CNPJ ERROR")
+    if digitos == digitos[0] * 14:
+        raise ValueError("CNPJ ERROR")
+
+    pesos1 = (5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2)
+    pesos2 = (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2)
+
+    def calcular_digito(base: str, pesos: tuple[int, ...]) -> int:
+        soma = sum(int(n) * p for n, p in zip(base, pesos))
+        resto = soma % 11
+        return 0 if resto < 2 else 11 - resto
+
+    d1 = calcular_digito(digitos[:12], pesos1)
+    if d1 != int(digitos[12]):
+        raise ValueError("CNPJ ERROR")
+    d2 = calcular_digito(digitos[:12] + str(d1), pesos2)
+    if d2 != int(digitos[13]):
+        raise ValueError("CNPJ ERROR")
+
+    return string_cnpj
+
+
+def validarSexoPorDocumento(sexo, documento) -> str:
+    try:
+        sexo = str(sexo).strip().upper()
+    except Exception:
+        raise ValueError("SEXO ERROR")
+
+    if eh_pessoa_juridica(documento):
+        if sexo not in ("PUBLICO", "PRIVADO"):
+            raise ValueError("SEXO ERROR")
+        if sexo != "PRIVADO":
+            raise ValueError(
+                "PJ PUBLICO - apenas empresas com tipo PRIVADO são processadas"
+            )
+        return "PRIVADO"
+
+    if sexo not in ("FEMININO", "MASCULINO"):
+        raise ValueError("SEXO ERROR")
+    return sexo
+
+
 def validarCpf(cpf) -> str:
     try:
         stringCpf = str(cpf)
@@ -97,6 +160,7 @@ def validarCpf(cpf) -> str:
 
     return stringCpf
 
+
 def validarSexo(sexo) -> str:
     try:
         sexo = str(sexo)
@@ -106,6 +170,7 @@ def validarSexo(sexo) -> str:
     if sexo != "FEMININO" and sexo != "MASCULINO":
         raise ValueError("SEXO ERROR")
     return sexo
+
 
 def validarCep(cep) -> str:
     try:
@@ -118,16 +183,20 @@ def validarCep(cep) -> str:
         raise ValueError("CEP ERROR")
     return cep
 
+
 def validarTipoDeLogradouro(tipo_de_logradouro) -> str:
     try:
         tipo_de_logradouro = str(tipo_de_logradouro)
     except:
         raise ValueError("TIPO DE LOGRADOURO ERROR")
     try:
-        tipo_de_logradouro = TIPOS_LOGRADOUROS[remove_accentuation(tipo_de_logradouro.upper())]
+        tipo_de_logradouro = TIPOS_LOGRADOUROS[
+            remove_accentuation(tipo_de_logradouro.upper())
+        ]
         return tipo_de_logradouro
     except:
         raise ValueError("TIPO DE LOGRADOURO ERROR")
+
 
 def validarDataDoContrato(data):
     if isinstance(data, str):
@@ -139,8 +208,7 @@ def validarDataDoContrato(data):
                     data = datetime.strptime(data, "%Y-%m-%d")
                 except:
                     data = datetime.strptime(data, "%d/%m/%Y")
-                
-                
+
             day = str(data.day)
             month = str(data.month)
             year = str(data.year)
@@ -163,25 +231,30 @@ def validarDataDoContrato(data):
     else:
         raise ValueError("DATA ERROR, FORMATO VÁLIDO = YYYY-MM-DD.")
 
+
 def validarLogradouro(logradouro) -> str:
     if logradouro.isdigit():
-                return str(logradouro)  
+        return str(logradouro)
     try:
-        
+
         logradouro = str(logradouro)
     except:
         raise ValueError("LOGRADOURO ERROR")
     return logradouro.title()
 
+
 def validarNumero(numero):
     try:
         numero = int(numero)
-        if(numero==0): numero = "sn"
-    except:pass
+        if numero == 0:
+            numero = "sn"
+    except:
+        pass
     numero = str(numero)
     numero = numero.lower()
-    
+
     return numero
+
 
 def validarBairro(bairro):
     try:
@@ -190,12 +263,14 @@ def validarBairro(bairro):
         raise ValueError("BAIRRO ERROR")
     return bairro.title()
 
+
 def validarCidade(cidade):
     try:
         cidade = str(cidade)
     except:
         raise ValueError("CIDADE ERROR")
     return cidade.title()
+
 
 def validarUf(uf):
     try:
@@ -204,10 +279,67 @@ def validarUf(uf):
         raise ValueError("UF ERROR")
     return uf.upper()
 
+
+ESTADOS_FORMULARIO_VALIDOS = frozenset({"CE", "MA", "CFT"})
+
+
+def validar_dados_formulario(dados: dict) -> list[tuple[str, str]]:
+    """
+    Valida os dados coletados na tela inicial.
+    Retorna lista de (campo, mensagem); campo identifica o widget na UI.
+    Campos exclusivos do MA não são exigidos nos demais estados.
+    """
+    erros: list[tuple[str, str]] = []
+
+    if not (dados.get("login") or "").strip():
+        erros.append(("login", "Informe o login do CREA/CFT."))
+
+    if not (dados.get("senha") or "").strip():
+        erros.append(("senha", "Informe a senha."))
+
+    planilha = (dados.get("dir_planilha") or "").strip()
+    if not planilha or planilha == "...":
+        erros.append(
+            (
+                "dir_planilha",
+                "Selecione a planilha de clientes (botão Escolher Arquivo).",
+            )
+        )
+
+    estado = (dados.get("estado") or "").strip().upper()
+    if not estado:
+        erros.append(("estado", "Selecione o estado: CE, MA ou CFT."))
+    elif estado not in ESTADOS_FORMULARIO_VALIDOS:
+        erros.append(("estado", f"Estado inválido: «{estado}». Use CE, MA ou CFT."))
+
+    if not (dados.get("numero_art") or "").strip():
+        erros.append(("numero_art", "Informe o número da ART."))
+
+    if estado == "MA":
+        if not (dados.get("nivel_atividade") or "").strip():
+            erros.append(
+                (
+                    "nivel_atividade",
+                    "Informe o nível de atividade (ex.: 16 - Execução).",
+                )
+            )
+        if not (dados.get("atividade_profissional") or "").strip():
+            erros.append(
+                (
+                    "atividade_profissional",
+                    "Informe a atividade profissional (ex.: 55 - Execução de serviço técnico).",
+                )
+            )
+
+    return erros
+
+
 def validarValorDoPlano(valor_do_plano):
     try:
         valor_do_plano = str(valor_do_plano)
-        valor_do_plano = valor_do_plano.replace("R$","").replace(":","").replace(" ","")
+        valor_do_plano = (
+            valor_do_plano.replace("R$", "").replace(":", "").replace(" ", "")
+        )
     except:
         raise ValueError("VALOR DO PLANO ERROR")
     valor_do_plano = valor_do_plano.strip()

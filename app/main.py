@@ -2,12 +2,14 @@ import pandas as pd
 from app.qt.mainwindow import tela
 import tempfile
 import os
+import traceback
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.webdriver import WebDriver as ChromeWebDriver
 from PyQt6.QtWidgets import QApplication
 from app.utils.clienteCE import ClienteCE
 from app.utils.clienteMA import ClienteMA
 from app.utils.clienteCFT import ClienteCFT
+from app.utils.cliente_sitac import ClienteSitac
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service 
 from selenium.webdriver.support.ui import WebDriverWait
@@ -22,7 +24,13 @@ from app.utils.error_report import (
     ErrorReport,
     persistir_relatorio_erros,
     registrar_erro_cliente,
+    anexar_erro_em_log,
 )
+from app.utils.browser_windows import (
+    definir_janela_principal,
+    envolver_browser,
+    recuperar_janela_ativa,
+ )
 
 ESTADOS = {
     "CE": ClienteCE,
@@ -33,10 +41,18 @@ ESTADOS = {
 def formatar_cpf(cpf):
     """Garante que o CPF tenha 11 dígitos, mantendo zeros à esquerda"""
     cpf = str(cpf).strip()
-    
-    cpf = ''.join(filter(str.isdigit, cpf))
-    
+
+    cpf = "".join(filter(str.isdigit, cpf))
+
     return cpf.zfill(11)
+
+
+def formatar_cpf_ou_cnpj(documento):
+    """Normaliza CPF (11 dígitos) ou CNPJ (14 dígitos) conforme o tamanho do documento."""
+    digitos = "".join(filter(str.isdigit, str(documento).strip()))
+    if len(digitos) > 11:
+        return digitos.zfill(14)
+    return digitos.zfill(11)
 
 def validar_data_mes_anterior(data_str):
     """Valida se a data é do mês anterior ao atual"""
@@ -77,8 +93,13 @@ def extrair_clientes(dataframe, Classe, error_report: ErrorReport | None = None)
     
     dataframe[colunas_para_texto] = dataframe[colunas_para_texto].astype(str)
     
-    if 'CPF' in dataframe.columns:
-        dataframe['CPF'] = dataframe['CPF'].apply(formatar_cpf)
+    if "CPF" in dataframe.columns:
+        formatar_doc = (
+            formatar_cpf_ou_cnpj
+            if issubclass(Classe, ClienteSitac)
+            else formatar_cpf
+        )
+        dataframe["CPF"] = dataframe["CPF"].apply(formatar_doc)
     
     print("\033[34m", dataframe.head(), "\033[0m")
     
@@ -86,8 +107,13 @@ def extrair_clientes(dataframe, Classe, error_report: ErrorReport | None = None)
     for idx, data in enumerate(dataframe.values):
         row_data = dict(zip(list(dataframe.columns), list(data)))
         try:
-            if len(data) > 1:  
-                data[1] = formatar_cpf(data[1])
+            if len(data) > 1:
+                formatar_doc = (
+                    formatar_cpf_ou_cnpj
+                    if issubclass(Classe, ClienteSitac)
+                    else formatar_cpf
+                )
+                data[1] = formatar_doc(data[1])
             
             # Valida a data antes de criar o cliente
             if not validar_data_mes_anterior(data[5]):  # Assumindo que a data está na coluna 5
@@ -169,7 +195,7 @@ def browserChromeFactory():
     except Exception:
         pass
 
-    return browser
+    return envolver_browser(browser)
 
 def _limpar_flag_erro_cliente(cliente) -> None:
     try:
@@ -183,9 +209,9 @@ if __name__ == "__main__":
     pd.set_option('display.float_format', lambda x: '%.0f' % x)
     
     dados = tela()
-    if None in dados.values():
-        print("\033[31mERRO NOS DADOS INSERIDOS!\033[0m")
-        quit()
+    if dados is None:
+        print("\033[33mOperação cancelada ou formulário não confirmado.\033[0m")
+        sys.exit(0)
 
     error_report: ErrorReport | None = None
     browser = None
@@ -227,9 +253,17 @@ if __name__ == "__main__":
                         try:
                             browser.title
                         except Exception:
-                            print("⚠ Navegador fechou, recriando...")
-                            browser = browserChromeFactory()
-                            print("✓ Navegador recriado")
+                            # Nem sempre o Chrome fechou: às vezes só a aba atual foi fechada
+                            # (NoSuchWindowException). Tenta recuperar uma janela válida antes
+                            # de recriar a sessão e forçar novo login.
+                            if recuperar_janela_ativa(browser) is not None:
+                                print("⚠ Janela atual fechou; recuperando sessão do navegador...")
+                                definir_janela_principal(browser)
+                            else:
+                                print("⚠ Navegador fechou, recriando...")
+                                browser = browserChromeFactory()
+                                definir_janela_principal(browser)
+                                print("✓ Navegador recriado")
 
                         print("número ART: " + dados["numero_art"])
                         try:
@@ -243,6 +277,7 @@ if __name__ == "__main__":
                                     cliente.login_CFT(
                                         browser, dados["login"], dados["senha"]
                                     )
+                                    definir_janela_principal(browser)
                                 except Exception as e:
                                     registrar_erro_cliente(
                                         error_report,
@@ -262,6 +297,7 @@ if __name__ == "__main__":
                                     cliente.login_crea(
                                         browser, dados["login"], dados["senha"]
                                     )
+                                    definir_janela_principal(browser)
                                 except Exception as e:
                                     registrar_erro_cliente(
                                         error_report,
@@ -278,6 +314,7 @@ if __name__ == "__main__":
                                     raise
 
                         try:
+                            definir_janela_principal(browser)
                             if dados["estado"] == "CE":
                                 cliente.cadastrar(
                                     browser,
@@ -295,7 +332,11 @@ if __name__ == "__main__":
                                     error_report=error_report,
                                 )
                             else:
-                                cliente.cadastrar(browser, dados["numero_art"])
+                                cliente.cadastrar(
+                                    browser,
+                                    dados["numero_art"],
+                                    error_report=error_report,
+                                )
                         except Exception as e:
                             registrar_erro_cliente(
                                 error_report,
@@ -311,10 +352,36 @@ if __name__ == "__main__":
                                 dados=dados,
                             )
                             raise
+                        if not getattr(cliente, "_sucesso_confirmado", False):
+                            motivo = (
+                                "Cadastro finalizou sem confirmação explícita de sucesso "
+                                "pela plataforma (modal de sucesso não detectado)."
+                            )
+                            print(f"\033[33m⚠ ALERTA NO CLIENTE: {cliente.nome}\033[0m")
+                            print(f"\033[33mDetalhes do alerta: {motivo}\033[0m")
+                            registrar_erro_cliente(
+                                error_report,
+                                cliente,
+                                etapa="feedback_plataforma",
+                                motivo=motivo,
+                                exception=None,
+                                contexto={
+                                    "cliente_index": i,
+                                    "estado": dados.get("estado"),
+                                    "numero_art": dados.get("numero_art"),
+                                },
+                                dados=dados,
+                            )
+                            raise RuntimeError(motivo)
                         print(f"\033[32m✓ SUCESSO NO CLIENTE: {cliente.nome}\033[0m")
                     except Exception as e:
                         print(f"\033[31m✗ ERRO NO CLIENTE: {cliente.nome}\033[0m")
                         print(f"\033[31mDetalhes do erro: {e}\033[0m")
+                        try:
+                            print("\033[31mTraceback (Python):\033[0m")
+                            print(traceback.format_exc())
+                        except Exception:
+                            pass
 
                         if not getattr(cliente, "_erro_registrado", False):
                             registrar_erro_cliente(
@@ -326,28 +393,30 @@ if __name__ == "__main__":
                                 contexto={"cliente_index": i},
                                 dados=dados,
                             )
-
                         try:
-                            browser.quit()
+                            anexar_erro_em_log(
+                                dados,
+                                etapa="processamento_cliente",
+                                motivo="Erro inesperado ao processar o cliente.",
+                                exception=e,
+                                contexto={
+                                    "cliente_nome": getattr(cliente, "nome", ""),
+                                    "cliente_index": i,
+                                    "estado": dados.get("estado"),
+                                    "numero_art": dados.get("numero_art"),
+                                },
+                            )
                         except Exception:
                             pass
 
+                        # Mantém o navegador e a sessão logada para o próximo cliente.
+                        # O início do loop já recria o browser só se ele tiver fechado
+                        # e só faz login se logout_info não estiver presente.
                         if i < len(clientes):
-                            print("\n⚠ Recriando navegador para próximo cliente...")
-                            try:
-                                browser = browserChromeFactory()
-                                print("✓ Navegador recriado")
-                            except Exception as e_browser:
-                                registrar_erro_cliente(
-                                    error_report,
-                                    cliente,
-                                    etapa="recriar_browser",
-                                    motivo="Falha ao recriar o navegador após erro do cliente.",
-                                    exception=e_browser,
-                                    contexto={"cliente_index": i},
-                                    dados=dados,
-                                )
-                                raise
+                            print(
+                                "\n⚠ Erro neste cliente; mantendo navegador aberto "
+                                "para o próximo."
+                            )
             finally:
                 if browser is not None:
                     try:
@@ -357,6 +426,11 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"\033[31mErro fatal na execução: {e}\033[0m")
+        try:
+            print("\033[31mTraceback (Python):\033[0m")
+            print(traceback.format_exc())
+        except Exception:
+            pass
         if error_report is None:
             error_report = ErrorReport([])
         error_report.add(
@@ -366,6 +440,16 @@ if __name__ == "__main__":
             exception=e,
             contexto={"estado": dados.get("estado")},
         )
+        try:
+            anexar_erro_em_log(
+                dados,
+                etapa="execucao",
+                motivo="Erro fatal antes ou durante o processamento.",
+                exception=e,
+                contexto={"estado": dados.get("estado")},
+            )
+        except Exception:
+            pass
     finally:
         if error_report is not None:
             persistir_relatorio_erros(dados, error_report)

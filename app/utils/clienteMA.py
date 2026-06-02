@@ -4,12 +4,15 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 import time
-from app.utils.cliente import Cliente
+import re
+import unicodedata
+from app.utils.cliente_sitac import ClienteSitac
 from app.utils.art_cep import (
     aguardar_overlay_invisivel,
     fluxo_modal_cep,
     fluxo_cep_contrato,
 )
+from app.utils.browser_windows import definir_janela_principal, janela_auxiliar
 from app.utils.error_report import ErrorReport
 from app.utils.selenium_actions import (
     clicar_seguro,
@@ -19,12 +22,12 @@ from app.utils.selenium_actions import (
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 
-class ClienteMA(Cliente):
+class ClienteMA(ClienteSitac):
     NIVEL_ATIVIDADE_PADRAO = "16 - Execução"
     ATIVIDADE_PROFISSIONAL_PADRAO = "55 - Execução de serviço técnico"
 
     def __init__(self, args):
-        super().__init__(*args)
+        super().__init__(args)
         self.URL_LOGIN_CREA = "https://servicos-crea-ma.sitac.com.br//index.php"
         self.URL_ART = (
             "https://servicos-crea-ma.sitac.com.br/app/view/sight/ini?form=Art&id="
@@ -33,23 +36,63 @@ class ClienteMA(Cliente):
     def _selecionar_opcao_por_titulo(
         self, browser, titulo, padrao, element_id, descricao_campo
     ):
+        def _norm(s: str) -> str:
+            s = (s or "").strip()
+            if not s:
+                return ""
+            s = unicodedata.normalize("NFKD", s)
+            s = "".join(ch for ch in s if not unicodedata.combining(ch))
+            s = s.lower()
+            s = re.sub(r"\s+", " ", s).strip()
+            return s
+
+        def _codigo_prefixo(s: str) -> str | None:
+            m = re.match(r"^\s*(\d+)\s*[-–]\s*.+$", s or "")
+            return m.group(1) if m else None
+
         titulo = (titulo or padrao).strip()
+        titulo_norm = _norm(titulo)
+        titulo_cod = _codigo_prefixo(titulo)
+
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.presence_of_element_located((By.ID, element_id))
         )
+
+        # Em alguns formulários do SITAC as opções do <select> são carregadas via JS
+        # após a presença do elemento. Espera até existir pelo menos 1 opção com value.
+        WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            lambda d: any(
+                (opt.get_attribute("value") or "").strip()
+                for opt in Select(d.find_element(By.ID, element_id)).options
+            )
+        )
+
         select = Select(element_select)
         for option in select.options:
-            valor = option.get_attribute("value")
+            valor = (option.get_attribute("value") or "").strip()
             if not valor:
                 continue
+
             opt_title = (option.get_attribute("title") or "").strip()
             opt_text = (option.text or "").strip()
-            if opt_title == titulo or opt_text == titulo:
+            opt_norm_title = _norm(opt_title)
+            opt_norm_text = _norm(opt_text)
+
+            # Match flexível: exato / normalizado / por código numérico (ex: "16 - ...")
+            opt_cod = _codigo_prefixo(opt_text) or _codigo_prefixo(opt_title)
+            if (
+                opt_title == titulo
+                or opt_text == titulo
+                or (titulo_norm and (opt_norm_title == titulo_norm or opt_norm_text == titulo_norm))
+                or (titulo_cod and opt_cod and titulo_cod == opt_cod)
+                or (titulo_norm and (titulo_norm in opt_norm_text or titulo_norm in opt_norm_title))
+            ):
                 selecionar_por_valor_seguro(browser, element_select, valor)
                 return
+
         raise ValueError(
             f"{descricao_campo} '{titulo}' não encontrado em {element_id}. "
-            f"Use o texto da opção (ex: {padrao})."
+            f"Use o texto/código da opção (ex: {padrao})."
         )
 
     def _selecionar_nivel_atividade(
@@ -94,6 +137,7 @@ class ClienteMA(Cliente):
             atividade_profissional or self.ATIVIDADE_PROFISSIONAL_PADRAO
         ).strip()
         browser.get(self.URL_ART + numero_art)
+        definir_janela_principal(browser)
         try:
             browser.maximize_window()
         except Exception:
@@ -149,58 +193,58 @@ class ClienteMA(Cliente):
         element_button = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.element_to_be_clickable((By.ID, "ESCOLHERATUACAO"))
         )
-        clicar_seguro(browser, element_button)
-        time.sleep(2)
-
-        browser.switch_to.window(browser.window_handles[-1])
-
-        # 2. Espera o botão 'Mostrar todos' e clica normalmente
-        mostrar_todos = WebDriverWait(browser, 20).until(
-            EC.element_to_be_clickable((By.ID, "exibirTodos"))
-        )
-        browser.execute_script("arguments[0].scrollIntoView();", mostrar_todos)
-        browser.execute_script("arguments[0].click();", mostrar_todos)
-        time.sleep(2)
-
-        # 4. Navega na árvore para selecionar o item desejado
-        try:
-            eletronica = WebDriverWait(browser, 20).until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//*[contains(text(), '12 - Eletrônica')]")
+        with janela_auxiliar(
+            browser, lambda: clicar_seguro(browser, element_button)
+        ) as entrou_popup:
+            if not entrou_popup:
+                raise TimeoutException(
+                    "Popup de atuação profissional não abriu após ESCOLHERATUACAO."
                 )
-            )
-            browser.execute_script("arguments[0].scrollIntoView();", eletronica)
-            browser.execute_script("arguments[0].click();", eletronica)
-            time.sleep(1)
 
-            fibras = WebDriverWait(browser, 20).until(
-                EC.element_to_be_clickable(
-                    (
-                        By.XPATH,
-                        "//*[contains(text(), '12.7 - Sistemas e Equipamentos de Fibras Ópticas')]",
+            time.sleep(2)
+            mostrar_todos = WebDriverWait(browser, 20).until(
+                EC.element_to_be_clickable((By.ID, "exibirTodos"))
+            )
+            browser.execute_script("arguments[0].scrollIntoView();", mostrar_todos)
+            browser.execute_script("arguments[0].click();", mostrar_todos)
+            time.sleep(2)
+
+            try:
+                eletronica = WebDriverWait(browser, 20).until(
+                    EC.element_to_be_clickable(
+                        (By.XPATH, "//*[contains(text(), '12 - Eletrônica')]")
                     )
                 )
-            )
-            browser.execute_script("arguments[0].scrollIntoView();", fibras)
-            browser.execute_script("arguments[0].click();", fibras)
-            time.sleep(1)
+                browser.execute_script("arguments[0].scrollIntoView();", eletronica)
+                browser.execute_script("arguments[0].click();", eletronica)
+                time.sleep(1)
 
-            item_alvo = WebDriverWait(browser, 20).until(
-                EC.element_to_be_clickable(
-                    (
-                        By.XPATH,
-                        "//*[contains(text(), '12.7.1 - de rede de fibra óptica')]",
+                fibras = WebDriverWait(browser, 20).until(
+                    EC.element_to_be_clickable(
+                        (
+                            By.XPATH,
+                            "//*[contains(text(), '12.7 - Sistemas e Equipamentos de Fibras Ópticas')]",
+                        )
                     )
                 )
-            )
-            browser.execute_script("arguments[0].scrollIntoView();", item_alvo)
-            browser.execute_script("arguments[0].click();", item_alvo)
-            time.sleep(1)
+                browser.execute_script("arguments[0].scrollIntoView();", fibras)
+                browser.execute_script("arguments[0].click();", fibras)
+                time.sleep(1)
 
-            browser.switch_to.window(browser.window_handles[0])
-        except Exception as e:
-            print(f"Erro ao navegar na árvore: {e}")
-            raise
+                item_alvo = WebDriverWait(browser, 20).until(
+                    EC.element_to_be_clickable(
+                        (
+                            By.XPATH,
+                            "//*[contains(text(), '12.7.1 - de rede de fibra óptica')]",
+                        )
+                    )
+                )
+                browser.execute_script("arguments[0].scrollIntoView();", item_alvo)
+                browser.execute_script("arguments[0].click();", item_alvo)
+                time.sleep(1)
+            except Exception as e:
+                print(f"Erro ao navegar na árvore: {e}")
+                raise
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.presence_of_element_located((By.ID, "UNIDADEMEDIDA00"))
@@ -212,125 +256,7 @@ class ClienteMA(Cliente):
         )
         preencher_seguro(browser, element_select, "1,00")  # quantidade
 
-        aguardar_overlay_invisivel(browser)
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.element_to_be_clickable((By.ID, "contratante0_ContratantePF"))
-        )
-        clicar_seguro(browser, element_select)  # contratante
-
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.element_to_be_clickable((By.ID, "contratante0_CampoContratantePF"))
-        )
-        preencher_seguro(browser, element_select, self.cpf)  # cpf
-
-        aguardar_overlay_invisivel(browser)
-
-        try:
-            element_select = browser.find_element(By.ID, "session_timeout_container")
-            if element_select.is_displayed():
-                clicar_seguro(browser, element_select)
-        except Exception:
-            pass
-
-        try:
-            element_select = WebDriverWait(browser, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "a.botao_adicionar"))
-            )
-            clicar_seguro(browser, element_select)  # cadastrar contratante
-            browser.switch_to.window(browser.window_handles[-1])
-            browser.maximize_window()
-
-            element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "NOME"))
-            )
-            preencher_seguro(browser, element_select, self.nome)  # nome
-
-            element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "CEP"))
-            )
-
-            def _click_validar_cep_modal():
-                btn = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                    EC.element_to_be_clickable(
-                        (By.CSS_SELECTOR, "a.botao_ajaxform_adicionar")
-                    )
-                )
-                clicar_seguro(browser, btn)
-
-            fluxo_modal_cep(
-                browser,
-                element_select,
-                self,
-                _click_validar_cep_modal,
-                self.TIME_TO_WAIT,
-            )
-            time.sleep(5)
-
-            element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.presence_of_element_located((By.ID, "TIPOLOGRADOURO"))
-            )
-            selecionar_por_valor_seguro(
-                browser, element_select, self.tipo_de_logradouro
-            )  # tipo_de_logradouro
-
-            element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.element_to_be_clickable((By.ID, "LOGRADOURO"))
-            )
-            preencher_seguro(browser, element_select, self.logradouro)  # logradouro
-
-            element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.element_to_be_clickable((By.ID, "ENDERECO_NUMERO"))
-            )
-            preencher_seguro(browser, element_select, self.numero)  # numero
-
-            element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.element_to_be_clickable((By.ID, "BAIRRO"))
-            )
-            preencher_seguro(browser, element_select, self.bairro)  # bairro
-
-            element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                EC.element_to_be_clickable((By.ID, "save"))
-            )
-            clicar_seguro(browser, element_select)
-
-            browser.switch_to.window(browser.window_handles[0])
-
-            if error_report is not None:
-
-                # Verifica se o botão cadastrar contratante ainda está visível na tela do CPF
-                try:
-                    WebDriverWait(browser, 5).until(
-                        EC.presence_of_element_located(
-                            (By.ID, "contratante0_CampoContratantePF")
-                        )
-                    )
-                    time.sleep(2)
-
-                    btns = browser.find_elements(By.CSS_SELECTOR, "a.botao_adicionar")
-
-                    for b in btns:
-                        try:
-                            if b.is_displayed():
-                                error_report.add(
-                                    row_data=getattr(self, "_row_data", {}),
-                                    etapa="cadastro_endereco_contratante",
-                                    motivo=(
-                                        "Após o fluxo de endereço no modal do contratante, o botão "
-                                        "cadastrar contratante (a.botao_adicionar) ainda está visível "
-                                        "na tela do CPF — cadastro do contratante possivelmente incompleto no endereço."
-                                    ),
-                                    contexto={
-                                        "cliente_nome": getattr(self, "nome", ""),
-                                        "cpf": getattr(self, "cpf", ""),
-                                    },
-                                )
-                                break
-                        except Exception:
-                            continue
-                except Exception:
-                    pass
-        except:
-            pass
+        self.cadastrar_contratante(browser, error_report)
 
         time.sleep(5)
 
@@ -339,15 +265,13 @@ class ClienteMA(Cliente):
             btn_coordenadas = WebDriverWait(browser, 5).until(
                 EC.element_to_be_clickable((By.ID, "ESCOLHERCORDENADASGMAP"))
             )
-            clicar_seguro(browser, btn_coordenadas)
-            time.sleep(5)  # Aguarda o mapa abrir
-
-            # Fecha a janela do mapa para capturar as coordenadas automaticamente
-            if len(browser.window_handles) > 1:
-                browser.switch_to.window(browser.window_handles[-1])
-                browser.close()
-                browser.switch_to.window(browser.window_handles[0])
-                time.sleep(1)
+            with janela_auxiliar(
+                browser,
+                lambda: clicar_seguro(browser, btn_coordenadas),
+                fechar_ao_sair=True,
+            ):
+                time.sleep(5)
+            time.sleep(1)
 
             # Preenche latitude e longitude com 0 apenas se estiverem vazios
             try:
@@ -459,7 +383,11 @@ class ClienteMA(Cliente):
             EC.element_to_be_clickable((By.ID, "save"))
         )
         clicar_seguro(browser, element_save)  # salvar
-        time.sleep(10)
+        self.verificar_feedback_plataforma(
+            browser,
+            error_report,
+            etapa="cadastro_contrato",
+        )
 
     def login_crea(self, browser, login, senha) -> None:
         try:
