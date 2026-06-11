@@ -296,18 +296,34 @@ class MainWindow(QMainWindow):
             self._aplicar_credenciais_para_estado(estado)
             self._limpar_destaque_erros()
 
+    def _diretorio_inicial_planilha(self) -> str:
+        ultimo = self._credentials.get_last_dir_planilha()
+        if ultimo and os.path.isdir(ultimo):
+            return ultimo
+        atual = self.ui.label.text().strip()
+        if atual:
+            diretorio = os.path.dirname(atual)
+            if diretorio and os.path.isdir(diretorio):
+                return diretorio
+        return ""
+
     def onOpenButtonClicked(self):
         file_name, _ = QFileDialog.getOpenFileName(
             parent=self,
             caption="Selecionar Arquivo",
-            directory="",  # Diretório inicial vazio
-            filter="Todos os arquivos (*)",  # Filtro de arquivos
-            options=QFileDialog.Option.DontUseNativeDialog  # Opções (opcional)
+            directory=self._diretorio_inicial_planilha(),
+            filter="Todos os arquivos (*)",
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
-        
-        if file_name:  # Verifica se um arquivo foi selecionado
+
+        if file_name:
             self.ui.label.setText(file_name)
             self.ui.pushButton_cadastrar.setEnabled(True)
+            try:
+                self._credentials.set_last_dir_planilha(file_name)
+                self._credentials.save()
+            except Exception:
+                pass
 
     def onSalvarErrosToggled(self, checked: bool):
         self.ui.comboBox_formato_erros.setEnabled(bool(checked))

@@ -64,6 +64,7 @@ class CredentialsStore:
             "version": 1,
             "last": {"tipo": "", "login": "", "senha": ""},
             "por_tipo": {},
+            "ui": {"last_dir_planilha": ""},
         }
 
     def load(self) -> None:
@@ -118,4 +119,21 @@ class CredentialsStore:
             "login": _coerce_str(login).strip(),
             "senha": _coerce_str(senha),
         }
+
+    def get_last_dir_planilha(self) -> str:
+        ui = self._data.get("ui") or {}
+        return _coerce_str(ui.get("last_dir_planilha")).strip()
+
+    def set_last_dir_planilha(self, caminho: str) -> None:
+        caminho = _coerce_str(caminho).strip()
+        if not caminho:
+            return
+        diretorio = str(Path(caminho).parent)
+        if not diretorio:
+            return
+        ui = self._data.setdefault("ui", {})
+        if not isinstance(ui, dict):
+            ui = {}
+            self._data["ui"] = ui
+        ui["last_dir_planilha"] = diretorio
 
