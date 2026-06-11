@@ -16,7 +16,12 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.wait import WebDriverWait
 
 from app.utils.art_cep import aguardar_overlay_invisivel, fluxo_modal_cep
-from app.utils.browser_windows import janela_auxiliar, voltar_janela_principal
+from app.utils.browser_windows import (
+    desembrulhar,
+    janela_auxiliar,
+    obter_janela_principal,
+    voltar_janela_principal,
+)
 from app.utils.cliente import Cliente
 from app.utils.error_report import ErrorReport
 from app.utils.selenium_actions import (
@@ -208,6 +213,87 @@ class ClienteSitac(Cliente):
             except Exception:
                 continue
 
+    def _feedback_modal_visivel(self, browser) -> dict | None:
+        """Verifica se o modal de feedback já está visível (sem aguardar)."""
+        titulo_erro = _elemento_aviso_visivel(browser, SEL_AVISO_ERRO_TITULO)
+        if titulo_erro is not None:
+            msg_el = browser.find_elements(By.CSS_SELECTOR, SEL_AVISO_ERRO_MENSAGEM)
+            mensagem = ""
+            for el in msg_el:
+                try:
+                    if el.is_displayed():
+                        mensagem = _extrair_mensagem_aviso(el)
+                        break
+                except Exception:
+                    continue
+            if not mensagem:
+                mensagem = (titulo_erro.text or "ERRO").strip()
+            return {"tipo": "erro", "mensagem": mensagem}
+
+        titulo_ok = _elemento_aviso_visivel(browser, SEL_AVISO_SUCESSO_TITULO)
+        if titulo_ok is not None:
+            mensagem = ""
+            for el in browser.find_elements(By.CSS_SELECTOR, SEL_AVISO_SUCESSO_MENSAGEM):
+                try:
+                    if el.is_displayed():
+                        mensagem = _extrair_mensagem_aviso(el)
+                        break
+                except Exception:
+                    continue
+            if not mensagem:
+                mensagem = (titulo_ok.text or "Sucesso").strip()
+            return {"tipo": "sucesso", "mensagem": mensagem}
+
+        return None
+
+    def _botao_adicionar_contratante_visivel(self, browser) -> bool:
+        for btn in browser.find_elements(By.CSS_SELECTOR, "a.botao_adicionar"):
+            try:
+                if btn.is_displayed():
+                    return True
+            except Exception:
+                continue
+        return False
+
+    def _processar_feedback_plataforma(
+        self,
+        browser,
+        error_report: ErrorReport | None,
+        *,
+        etapa: str,
+        feedback: dict,
+        marcar_sucesso_global: bool,
+    ) -> None:
+        if feedback["tipo"] == "sucesso":
+            if marcar_sucesso_global:
+                self._sucesso_confirmado = True
+            print(
+                f"\033[32mPlataforma: {feedback.get('mensagem') or 'cadastro confirmado'}\033[0m"
+            )
+            return
+
+        motivo = feedback.get("mensagem") or "Erro retornado pela plataforma (sem mensagem)."
+        print(f"\033[31mPlataforma (ERRO): {motivo}\033[0m")
+
+        if error_report is not None:
+            error_report.add(
+                row_data=getattr(self, "_row_data", {}),
+                etapa=etapa,
+                motivo=motivo,
+                contexto={
+                    "cliente_nome": getattr(self, "nome", ""),
+                    "cpf": getattr(self, "cpf", ""),
+                    "is_pj": self.is_pj,
+                    "feedback_plataforma": feedback,
+                },
+            )
+            try:
+                self._erro_registrado = True
+            except Exception:
+                pass
+
+        raise FeedbackPlataformaErro(motivo)
+
     def verificar_feedback_plataforma(
         self,
         browser,
@@ -215,6 +301,7 @@ class ClienteSitac(Cliente):
         *,
         etapa: str,
         timeout: float = 20,
+        marcar_sucesso_global: bool = True,
     ) -> None:
         """
         Aguarda o modal de feedback do SITAC.
@@ -248,34 +335,103 @@ class ClienteSitac(Cliente):
                 except Exception:
                     pass
             raise FeedbackPlataformaErro(motivo)
-        if feedback["tipo"] == "sucesso":
-            self._sucesso_confirmado = True
-            print(
-                f"\033[32mPlataforma: {feedback.get('mensagem') or 'cadastro confirmado'}\033[0m"
-            )
-            return
 
-        motivo = feedback.get("mensagem") or "Erro retornado pela plataforma (sem mensagem)."
-        print(f"\033[31mPlataforma (ERRO): {motivo}\033[0m")
+        self._processar_feedback_plataforma(
+            browser,
+            error_report,
+            etapa=etapa,
+            feedback=feedback,
+            marcar_sucesso_global=marcar_sucesso_global,
+        )
 
-        if error_report is not None:
-            error_report.add(
-                row_data=getattr(self, "_row_data", {}),
-                etapa=etapa,
-                motivo=motivo,
-                contexto={
-                    "cliente_nome": getattr(self, "nome", ""),
-                    "cpf": getattr(self, "cpf", ""),
-                    "is_pj": self.is_pj,
-                    "feedback_plataforma": feedback,
-                },
-            )
-            try:
-                self._erro_registrado = True
-            except Exception:
-                pass
+    def _verificar_salvamento_modal_contratante(
+        self,
+        browser,
+        error_report: ErrorReport | None = None,
+        *,
+        timeout: float = 20,
+    ) -> None:
+        """
+        Confirma o salvamento do contratante no popup.
 
-        raise FeedbackPlataformaErro(motivo)
+        No primeiro cadastro, o SITAC costuma fechar o popup sem exibir o modal
+        padrão de sucesso/erro. Nesse caso, volta à janela principal e confirma
+        pelo desaparecimento do botão "cadastrar contratante".
+        """
+        driver = desembrulhar(browser)
+        principal = obter_janela_principal(browser)
+        popup_handle = driver.current_window_handle
+        etapa = "cadastro_contratante"
+
+        fim = time.time() + timeout
+        while time.time() < fim:
+            feedback = self._feedback_modal_visivel(browser)
+            if feedback is not None:
+                self._processar_feedback_plataforma(
+                    browser,
+                    error_report,
+                    etapa=etapa,
+                    feedback=feedback,
+                    marcar_sucesso_global=False,
+                )
+                return
+
+            popup_fechou = popup_handle not in driver.window_handles
+            if popup_fechou:
+                voltar_janela_principal(browser, principal)
+                aguardar_overlay_invisivel(browser)
+
+                feedback = aguardar_feedback_plataforma(browser, timeout=3)
+                if feedback is not None:
+                    self._processar_feedback_plataforma(
+                        browser,
+                        error_report,
+                        etapa=etapa,
+                        feedback=feedback,
+                        marcar_sucesso_global=False,
+                    )
+                    return
+
+                if not self._botao_adicionar_contratante_visivel(browser):
+                    print(
+                        "\033[32mPlataforma: contratante cadastrado "
+                        "(popup fechou sem modal de confirmação)\033[0m"
+                    )
+                    return
+
+                motivo = (
+                    "Popup do contratante fechou, mas o botão cadastrar contratante "
+                    "ainda está visível — cadastro possivelmente incompleto."
+                )
+                print(f"\033[31mPlataforma (ERRO): {motivo}\033[0m")
+                if error_report is not None:
+                    error_report.add(
+                        row_data=getattr(self, "_row_data", {}),
+                        etapa=etapa,
+                        motivo=motivo,
+                        contexto={
+                            "cliente_nome": getattr(self, "nome", ""),
+                            "cpf": getattr(self, "cpf", ""),
+                            "is_pj": self.is_pj,
+                            "feedback_plataforma": None,
+                            "popup_fechou": True,
+                        },
+                    )
+                    try:
+                        self._erro_registrado = True
+                    except Exception:
+                        pass
+                raise FeedbackPlataformaErro(motivo)
+
+            time.sleep(0.25)
+
+        self.verificar_feedback_plataforma(
+            browser,
+            error_report,
+            etapa=etapa,
+            timeout=2,
+            marcar_sucesso_global=False,
+        )
 
     def cadastrar_contratante(
         self, browser, error_report: ErrorReport | None = None
@@ -430,11 +586,10 @@ class ClienteSitac(Cliente):
             EC.element_to_be_clickable((By.ID, "save"))
         )
         clicar_seguro(browser, element_select)
-        self.verificar_feedback_plataforma(
+        self._verificar_salvamento_modal_contratante(
             browser,
             error_report,
-            etapa="cadastro_contratante",
-            timeout=15,
+            timeout=20,
         )
 
     def _verificar_cadastro_contratante_incompleto(
