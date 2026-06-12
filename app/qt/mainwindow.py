@@ -62,6 +62,8 @@ class MainWindow(QMainWindow):
         self.resultado_formato_erros = "xlsx"
         self.resultado_caminho_erros = ""
         self._aceito = False
+        self._dados_aceitos: dict | None = None
+        self._estado_credenciais_ativo = ""
         self._estilos_campos_originais: dict[str, str] = {}
         self._credentials = CredentialsStore()
 
@@ -110,10 +112,12 @@ class MainWindow(QMainWindow):
             self._atualizar_campos_ma("CFT")
             return
 
-    def _aplicar_credenciais_para_estado(self, estado: str):
+    def _aplicar_credenciais_para_estado(self, estado: str) -> None:
+        """Pré-preenche login/senha ao trocar de estado (CE/MA/CFT), sem sobrescrever re-cliques."""
         estado = (estado or "").strip().upper()
         if not estado:
             return
+        self._estado_credenciais_ativo = estado
         cred = self._credentials.get_for_tipo(estado)
         if not cred.login and not cred.senha:
             cred = self._credentials.get_last()
@@ -189,7 +193,7 @@ class MainWindow(QMainWindow):
         planilha = self.ui.label.text().strip()
         dados = {
             "login": self.ui.lineEdit_login.text().strip(),
-            "senha": self.ui.lineEdit_senha.text().strip(),
+            "senha": self.ui.lineEdit_senha.text(),
             "dir_planilha": planilha,
             "estado": estado,
             "numero_art": self.ui.lineEdit.text().strip(),
@@ -203,6 +207,29 @@ class MainWindow(QMainWindow):
             dados["atividade_profissional"] = (
                 self.ui.lineEdit_atividade_profissional.text().strip()
             )
+        return dados
+
+    def _montar_dados_aceitos(self, dados_parciais: dict) -> dict:
+        estado = (dados_parciais.get("estado") or "").strip()
+        dados = {
+            "login": (dados_parciais.get("login") or "").strip(),
+            "senha": dados_parciais.get("senha") or "",
+            "dir_planilha": (dados_parciais.get("dir_planilha") or "").strip(),
+            "estado": estado,
+            "numero_art": (dados_parciais.get("numero_art") or "").strip(),
+            "salvar_relatorio_erros": bool(
+                dados_parciais.get("salvar_relatorio_erros", False)
+            ),
+            "formato_relatorio_erros": self._fmt_erros(),
+            "caminho_relatorio_erros": dados_parciais.get("caminho_relatorio_erros") or "",
+            "nivel_atividade": None,
+            "atividade_profissional": None,
+        }
+        if estado == "MA":
+            nivel = (dados_parciais.get("nivel_atividade") or "").strip()
+            atividade = (dados_parciais.get("atividade_profissional") or "").strip()
+            dados["nivel_atividade"] = nivel or NIVEL_ATIVIDADE_PADRAO
+            dados["atividade_profissional"] = atividade or ATIVIDADE_PROFISSIONAL_PADRAO
         return dados
 
     def _widget_por_campo(self, campo: str):
@@ -260,11 +287,14 @@ class MainWindow(QMainWindow):
         self._limpar_destaque_erros()
         self._aceito = True
 
+        # Fonte única de verdade: o que o usuário confirmou no formulário (não reler a UI depois).
+        self._dados_aceitos = self._montar_dados_aceitos(dados_parciais)
+
         # Persistência do último login/senha por tipo (CE/MA/CFT)
         try:
-            estado = (dados_parciais.get("estado") or "").strip().upper()
-            login = (dados_parciais.get("login") or "").strip()
-            senha = (dados_parciais.get("senha") or "")
+            estado = (self._dados_aceitos.get("estado") or "").strip().upper()
+            login = self._dados_aceitos.get("login") or ""
+            senha = self._dados_aceitos.get("senha") or ""
             if estado:
                 self._credentials.set_for_tipo(estado, login=login, senha=senha)
             self._credentials.set_last(estado, login=login, senha=senha)
@@ -272,29 +302,32 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        # Captura os valores dos campos
-        self.resultado_line_edit = self.ui.lineEdit.text()
-        self.resultado_nivel_atividade = self.ui.lineEdit_nivel_atividade.text()
-        self.resultado_atividade_profissional = (
-            self.ui.lineEdit_atividade_profissional.text()
+        # Mantido para compatibilidade com código que lê atributos individuais
+        self.resultado_line_edit = self._dados_aceitos["numero_art"]
+        self.resultado_nivel_atividade = self._dados_aceitos.get("nivel_atividade")
+        self.resultado_atividade_profissional = self._dados_aceitos.get(
+            "atividade_profissional"
         )
-        self.resultado_label = self.ui.label.text()
-        self.resultado_login = self.ui.lineEdit_login.text()
-        self.resultado_senha = self.ui.lineEdit_senha.text()
-        self.resultado_salvar_erros = bool(self.ui.checkBox_salvar_erros.isChecked())
-        self.resultado_formato_erros = "xlsx" if self.ui.comboBox_formato_erros.currentIndex() == 0 else "csv"
-        self.resultado_caminho_erros = self.ui.lineEdit_caminho_erros.text()
-        self.resultado_radio_button = self._estado_selecionado()
+        self.resultado_label = self._dados_aceitos["dir_planilha"]
+        self.resultado_login = self._dados_aceitos["login"]
+        self.resultado_senha = self._dados_aceitos["senha"]
+        self.resultado_salvar_erros = self._dados_aceitos["salvar_relatorio_erros"]
+        self.resultado_formato_erros = self._dados_aceitos["formato_relatorio_erros"]
+        self.resultado_caminho_erros = self._dados_aceitos["caminho_relatorio_erros"]
+        self.resultado_radio_button = self._dados_aceitos["estado"]
         self.close()
 
     def on_radio_button_clicked(self):
         sender = self.sender()
-        if sender.isChecked():
-            estado = sender.text()
-            self.resultado_radio_button = estado
-            self._atualizar_campos_ma(estado)
-            self._aplicar_credenciais_para_estado(estado)
-            self._limpar_destaque_erros()
+        if not sender.isChecked():
+            return
+        estado = sender.text()
+        self.resultado_radio_button = estado
+        self._atualizar_campos_ma(estado)
+        estado_normalizado = self._estado_selecionado()
+        if estado_normalizado and estado_normalizado != self._estado_credenciais_ativo:
+            self._aplicar_credenciais_para_estado(estado_normalizado)
+        self._limpar_destaque_erros()
 
     def _diretorio_inicial_planilha(self) -> str:
         ultimo = self._credentials.get_last_dir_planilha()
@@ -308,13 +341,21 @@ class MainWindow(QMainWindow):
         return ""
 
     def onOpenButtonClicked(self):
-        file_name, _ = QFileDialog.getOpenFileName(
-            parent=self,
-            caption="Selecionar Arquivo",
-            directory=self._diretorio_inicial_planilha(),
-            filter="Todos os arquivos (*)",
-            options=QFileDialog.Option.DontUseNativeDialog,
-        )
+        # No Windows, QFileDialog pode alterar o cwd do processo; preservamos o diretório atual.
+        cwd_antes = os.getcwd()
+        try:
+            file_name, _ = QFileDialog.getOpenFileName(
+                parent=self,
+                caption="Selecionar Arquivo",
+                directory=self._diretorio_inicial_planilha(),
+                filter="Todos os arquivos (*)",
+                options=QFileDialog.Option.DontUseNativeDialog,
+            )
+        finally:
+            try:
+                os.chdir(cwd_antes)
+            except OSError:
+                pass
 
         if file_name:
             self.ui.label.setText(file_name)
@@ -355,13 +396,20 @@ class MainWindow(QMainWindow):
         filtro = "Excel (*.xlsx)" if fmt == "xlsx" else "CSV (*.csv)"
         atual = caminho_relatorio_informado_na_ui(self.ui.lineEdit_caminho_erros.text())
         sugestao = atual or caminho_relatorio_padrao(fmt)
-        file_name, _ = QFileDialog.getSaveFileName(
-            parent=self,
-            caption="Salvar relatório de erros",
-            directory=sugestao,
-            filter=filtro,
-            options=QFileDialog.Option.DontUseNativeDialog,
-        )
+        cwd_antes = os.getcwd()
+        try:
+            file_name, _ = QFileDialog.getSaveFileName(
+                parent=self,
+                caption="Salvar relatório de erros",
+                directory=sugestao,
+                filter=filtro,
+                options=QFileDialog.Option.DontUseNativeDialog,
+            )
+        finally:
+            try:
+                os.chdir(cwd_antes)
+            except OSError:
+                pass
         if file_name:
             self.ui.lineEdit_caminho_erros.setText(self._normalizar_extensao(file_name, fmt))
 
@@ -396,49 +444,10 @@ def tela() -> dict | None:
     widget.show()
     app.exec()
 
-    if not widget._aceito:
+    if not widget._aceito or not widget._dados_aceitos:
         return None
 
-    # Verificar se os valores não são None antes de usar strip()
-    login = widget.resultado_login.strip() if widget.resultado_login else ''
-    senha = widget.resultado_senha.strip() if widget.resultado_senha else ''
-    dir_planilha = widget.resultado_label.strip() if widget.resultado_label else ''
-    estado = widget.resultado_radio_button.strip() if widget.resultado_radio_button else ''
-    numero_art = widget.resultado_line_edit.strip() if widget.resultado_line_edit else ''
-    nivel_atividade = None
-    atividade_profissional = None
-    if estado == "MA":
-        nivel_atividade = (
-            widget.resultado_nivel_atividade.strip()
-            if widget.resultado_nivel_atividade
-            else NIVEL_ATIVIDADE_PADRAO
-        )
-        if not nivel_atividade:
-            nivel_atividade = NIVEL_ATIVIDADE_PADRAO
-        atividade_profissional = (
-            widget.resultado_atividade_profissional.strip()
-            if widget.resultado_atividade_profissional
-            else ATIVIDADE_PROFISSIONAL_PADRAO
-        )
-        if not atividade_profissional:
-            atividade_profissional = ATIVIDADE_PROFISSIONAL_PADRAO
-
-    data = {
-        "login": login,
-        "senha": senha,
-        "dir_planilha": dir_planilha,
-        "estado": estado,
-        "numero_art": numero_art,
-        "nivel_atividade": nivel_atividade,
-        "atividade_profissional": atividade_profissional,
-        "salvar_relatorio_erros": widget.resultado_salvar_erros,
-        "formato_relatorio_erros": widget.resultado_formato_erros,
-        "caminho_relatorio_erros": caminho_relatorio_informado_na_ui(
-            widget.resultado_caminho_erros or ""
-        ),
-    }
-
-    return data
+    return dict(widget._dados_aceitos)
 
 if __name__ == "__main__":
     data = tela()

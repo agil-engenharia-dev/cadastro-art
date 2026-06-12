@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from selenium.common.exceptions import NoSuchWindowException
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import Select
@@ -42,9 +43,15 @@ def preencher_seguro(browser: WebDriver, element: WebElement, texto: str) -> Non
         scroll_para_elemento(browser, element)
         try:
             element.clear()
+            # Limpa autofill do Chrome (comum no Windows) antes de digitar o valor desejado.
+            element.send_keys(Keys.CONTROL, "a")
+            element.send_keys(Keys.DELETE)
             element.send_keys(texto)
         except Exception:
             browser.execute_script(
+                "arguments[0].value = '';"
+                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
+                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));"
                 "arguments[0].value = arguments[1];"
                 "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
                 "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
