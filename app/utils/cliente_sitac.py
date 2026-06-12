@@ -15,7 +15,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.wait import WebDriverWait
 
-from app.utils.art_cep import aguardar_overlay_invisivel, fluxo_modal_cep
+from app.utils.art_cep import (
+    aguardar_overlay_invisivel,
+    aplicar_cep_generico_modal,
+    fluxo_modal_cep,
+    mensagem_indica_cep_nao_localizado,
+)
 from app.utils.browser_windows import (
     desembrulhar,
     janela_auxiliar,
@@ -254,6 +259,44 @@ class ClienteSitac(Cliente):
             except Exception:
                 continue
         return False
+
+    def _fechar_modal_feedback_erro(self, browser) -> bool:
+        for sel in (
+            ".aviso_acao_redireciona a",
+            ".aviso_acao_redireciona",
+            ".aviso_acao_erro_titulo",
+        ):
+            for el in browser.find_elements(By.CSS_SELECTOR, sel):
+                try:
+                    if el.is_displayed():
+                        clicar_seguro(browser, el)
+                        time.sleep(0.5)
+                        aguardar_overlay_invisivel(browser, 10)
+                        return True
+                except Exception:
+                    continue
+        return False
+
+    def _preencher_campos_endereco_modal_contratante(self, browser) -> None:
+        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.presence_of_element_located((By.ID, "TIPOLOGRADOURO"))
+        )
+        selecionar_por_valor_seguro(browser, element_select, self.tipo_de_logradouro)
+
+        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.element_to_be_clickable((By.ID, "LOGRADOURO"))
+        )
+        preencher_seguro(browser, element_select, self.logradouro)
+
+        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.element_to_be_clickable((By.ID, "ENDERECO_NUMERO"))
+        )
+        preencher_seguro(browser, element_select, self.numero)
+
+        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.element_to_be_clickable((By.ID, "BAIRRO"))
+        )
+        preencher_seguro(browser, element_select, self.bairro)
 
     def _processar_feedback_plataforma(
         self,
@@ -541,10 +584,6 @@ class ClienteSitac(Cliente):
     def _preencher_endereco_modal_contratante(
         self, browser, error_report: ErrorReport | None = None
     ) -> None:
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "CEP"))
-        )
-
         def _click_validar_cep_modal():
             btn = WebDriverWait(browser, self.TIME_TO_WAIT).until(
                 EC.element_to_be_clickable(
@@ -553,44 +592,55 @@ class ClienteSitac(Cliente):
             )
             clicar_seguro(browser, btn)
 
-        fluxo_modal_cep(
-            browser,
-            element_select,
-            self,
-            _click_validar_cep_modal,
-            self.TIME_TO_WAIT,
-        )
-        time.sleep(5)
+        for tentativa in range(2):
+            cep_el = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+                EC.presence_of_element_located((By.ID, "CEP"))
+            )
 
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.presence_of_element_located((By.ID, "TIPOLOGRADOURO"))
-        )
-        selecionar_por_valor_seguro(browser, element_select, self.tipo_de_logradouro)
+            if tentativa == 0:
+                fluxo_modal_cep(
+                    browser,
+                    cep_el,
+                    self,
+                    _click_validar_cep_modal,
+                    self.TIME_TO_WAIT,
+                )
+            else:
+                if not aplicar_cep_generico_modal(
+                    browser,
+                    cep_el,
+                    self,
+                    _click_validar_cep_modal,
+                    self.TIME_TO_WAIT,
+                ):
+                    raise FeedbackPlataformaErro(
+                        "CEP não foi localizado em nossa base e não foi possível "
+                        "aplicar CEP genérico."
+                    )
 
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.element_to_be_clickable((By.ID, "LOGRADOURO"))
-        )
-        preencher_seguro(browser, element_select, self.logradouro)
+            time.sleep(5)
+            self._preencher_campos_endereco_modal_contratante(browser)
 
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.element_to_be_clickable((By.ID, "ENDERECO_NUMERO"))
-        )
-        preencher_seguro(browser, element_select, self.numero)
+            element_save = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+                EC.element_to_be_clickable((By.ID, "save"))
+            )
+            clicar_seguro(browser, element_save)
 
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.element_to_be_clickable((By.ID, "BAIRRO"))
-        )
-        preencher_seguro(browser, element_select, self.bairro)
-
-        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.element_to_be_clickable((By.ID, "save"))
-        )
-        clicar_seguro(browser, element_select)
-        self._verificar_salvamento_modal_contratante(
-            browser,
-            error_report,
-            timeout=20,
-        )
+            try:
+                self._verificar_salvamento_modal_contratante(
+                    browser,
+                    error_report,
+                    timeout=20,
+                )
+                return
+            except FeedbackPlataformaErro as exc:
+                if (
+                    tentativa == 0
+                    and mensagem_indica_cep_nao_localizado(exc.mensagem)
+                    and self._fechar_modal_feedback_erro(browser)
+                ):
+                    continue
+                raise
 
     def _verificar_cadastro_contratante_incompleto(
         self,
