@@ -193,7 +193,7 @@ def validarTipoDeLogradouro(tipo_de_logradouro) -> str:
         tipo_de_logradouro = TIPOS_LOGRADOUROS[
             remove_accentuation(tipo_de_logradouro.upper())
         ]
-        return tipo_de_logradouro
+        return remove_accentuation(tipo_de_logradouro).upper()
     except:
         raise ValueError("TIPO DE LOGRADOURO ERROR")
 

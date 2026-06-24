@@ -93,6 +93,21 @@ def recuperar_janela_ativa(browser) -> str | None:
     return None
 
 
+def ativar_janela(browser, handle: str | None = None) -> None:
+    """Traz a aba/popup para frente (útil quando o SO não foca a nova janela)."""
+    driver = desembrulhar(browser)
+    if handle and handle in driver.window_handles:
+        driver.switch_to.window(handle)
+    try:
+        driver.maximize_window()
+    except Exception:
+        pass
+    try:
+        driver.execute_script("window.focus();")
+    except Exception:
+        pass
+
+
 def voltar_janela_principal(browser, main_handle: str | None = None) -> None:
     """Volta ao formulário da ART após popup/modal."""
     driver = desembrulhar(browser)
@@ -217,10 +232,7 @@ def janela_auxiliar(
     if novas:
         driver.switch_to.window(novas[-1])
         entrou_popup = True
-        try:
-            driver.maximize_window()
-        except Exception:
-            pass
+        ativar_janela(browser, novas[-1])
 
     try:
         yield entrou_popup

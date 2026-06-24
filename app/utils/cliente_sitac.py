@@ -260,6 +260,109 @@ class ClienteSitac(Cliente):
                 continue
         return False
 
+    def _contratante_requer_cadastro(self, browser) -> bool:
+        """Aguarda a busca do CPF/CNPJ e indica se o botão de cadastro apareceu."""
+        aguardar_overlay_invisivel(browser, self.TIME_TO_WAIT)
+        try:
+            WebDriverWait(browser, 15).until(
+                lambda d: self._botao_adicionar_contratante_visivel(d)
+            )
+            return True
+        except TimeoutException:
+            return False
+
+    def _modal_contratante_aberto(self, browser) -> bool:
+        for element_id in ("NOME", *IDS_RAZAO_SOCIAL):
+            try:
+                el = browser.find_element(By.ID, element_id)
+                if el.is_displayed():
+                    return True
+            except NoSuchElementException:
+                continue
+        return False
+
+    def _executar_cadastro_modal_contratante_pf(self, browser, error_report) -> None:
+        element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
+            EC.presence_of_element_located((By.ID, "NOME"))
+        )
+        preencher_seguro(browser, element_select, self.nome)
+        self._preencher_campos_extras_modal_pf(browser)
+        self._preencher_endereco_modal_contratante(browser, error_report)
+
+    def _executar_cadastro_modal_contratante_pj(self, browser, error_report) -> None:
+        self._preencher_campo_por_ids(browser, IDS_RAZAO_SOCIAL, self.nome)
+        self._preencher_campo_por_ids(browser, IDS_NOME_FANTASIA, self.nome)
+        self._selecionar_tipo_contratante_privado(browser)
+        self._preencher_campos_extras_modal_pj(browser)
+        self._preencher_endereco_modal_contratante(browser, error_report)
+
+    def _registrar_contratante_novo(
+        self,
+        browser,
+        error_report: ErrorReport | None,
+        *,
+        preencher_modal,
+        campo_documento_id: str,
+        tipo_documento: str,
+    ) -> None:
+        if not self._contratante_requer_cadastro(browser):
+            return
+
+        def _click_adicionar():
+            btn = WebDriverWait(browser, 15).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "a.botao_adicionar"))
+            )
+            clicar_seguro(browser, btn)
+
+        preenchido = False
+
+        with janela_auxiliar(browser, _click_adicionar, timeout=15) as entrou_popup:
+            if entrou_popup:
+                try:
+                    preencher_modal(browser, error_report)
+                    preenchido = True
+                except FeedbackPlataformaErro:
+                    voltar_janela_principal(browser)
+                    raise
+
+        if not preenchido:
+            aguardar_overlay_invisivel(browser, 5)
+            try:
+                WebDriverWait(browser, 8).until(
+                    lambda d: self._modal_contratante_aberto(d)
+                )
+            except TimeoutException:
+                motivo = (
+                    "Contratante não encontrado na plataforma, mas o modal de cadastro "
+                    "não abriu após clicar em cadastrar contratante."
+                )
+                if error_report is not None:
+                    error_report.add(
+                        row_data=getattr(self, "_row_data", {}),
+                        etapa="cadastro_contratante",
+                        motivo=motivo,
+                        contexto={
+                            "cliente_nome": getattr(self, "nome", ""),
+                            "cpf": getattr(self, "cpf", ""),
+                            "is_pj": self.is_pj,
+                        },
+                    )
+                raise FeedbackPlataformaErro(motivo)
+
+            try:
+                preencher_modal(browser, error_report)
+            except FeedbackPlataformaErro:
+                voltar_janela_principal(browser)
+                raise
+
+        if error_report is not None:
+            self._verificar_cadastro_contratante_incompleto(
+                browser,
+                error_report,
+                campo_documento_id=campo_documento_id,
+                tipo_documento=tipo_documento,
+            )
+
     def _fechar_modal_feedback_erro(self, browser) -> bool:
         for sel in (
             ".aviso_acao_redireciona a",
@@ -501,37 +604,13 @@ class ClienteSitac(Cliente):
         aguardar_overlay_invisivel(browser)
         self._dismiss_session_timeout(browser)
 
-        def _abrir_modal():
-            btn = WebDriverWait(browser, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "a.botao_adicionar"))
-            )
-            clicar_seguro(browser, btn)
-
-        try:
-            with janela_auxiliar(browser, _abrir_modal) as entrou_popup:
-                if not entrou_popup:
-                    return
-
-                element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-                    EC.presence_of_element_located((By.ID, "NOME"))
-                )
-                preencher_seguro(browser, element_select, self.nome)
-                self._preencher_campos_extras_modal_pf(browser)
-
-                self._preencher_endereco_modal_contratante(browser, error_report)
-        except FeedbackPlataformaErro:
-            voltar_janela_principal(browser)
-            raise
-        except Exception:
-            pass
-
-        if error_report is not None:
-            self._verificar_cadastro_contratante_incompleto(
-                browser,
-                error_report,
-                campo_documento_id="contratante0_CampoContratantePF",
-                tipo_documento="CPF",
-            )
+        self._registrar_contratante_novo(
+            browser,
+            error_report,
+            preencher_modal=self._executar_cadastro_modal_contratante_pf,
+            campo_documento_id="contratante0_CampoContratantePF",
+            tipo_documento="CPF",
+        )
 
     def _cadastrar_contratante_pj(
         self, browser, error_report: ErrorReport | None = None
@@ -550,36 +629,13 @@ class ClienteSitac(Cliente):
         aguardar_overlay_invisivel(browser)
         self._dismiss_session_timeout(browser)
 
-        def _abrir_modal():
-            btn = WebDriverWait(browser, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "a.botao_adicionar"))
-            )
-            clicar_seguro(browser, btn)
-
-        try:
-            with janela_auxiliar(browser, _abrir_modal) as entrou_popup:
-                if not entrou_popup:
-                    return
-
-                self._preencher_campo_por_ids(browser, IDS_RAZAO_SOCIAL, self.nome)
-                self._preencher_campo_por_ids(browser, IDS_NOME_FANTASIA, self.nome)
-                self._selecionar_tipo_contratante_privado(browser)
-                self._preencher_campos_extras_modal_pj(browser)
-
-                self._preencher_endereco_modal_contratante(browser, error_report)
-        except FeedbackPlataformaErro:
-            voltar_janela_principal(browser)
-            raise
-        except Exception:
-            pass
-
-        if error_report is not None:
-            self._verificar_cadastro_contratante_incompleto(
-                browser,
-                error_report,
-                campo_documento_id="contratante0_CampoContratantePJ",
-                tipo_documento="CNPJ",
-            )
+        self._registrar_contratante_novo(
+            browser,
+            error_report,
+            preencher_modal=self._executar_cadastro_modal_contratante_pj,
+            campo_documento_id="contratante0_CampoContratantePJ",
+            tipo_documento="CNPJ",
+        )
 
     def _preencher_endereco_modal_contratante(
         self, browser, error_report: ErrorReport | None = None

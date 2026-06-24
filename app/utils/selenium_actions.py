@@ -9,6 +9,28 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import Select
 
 from app.utils.browser_windows import executar_com_recuperacao_janela
+from app.utils.validation import remove_accentuation
+
+
+def _normalizar_opcao_select(valor: str) -> str:
+    return remove_accentuation((valor or "").strip().upper())
+
+
+def _resolver_valor_opcao_select(element: WebElement, value: str) -> str:
+    """Encontra o value real da option, ignorando diferenças de acentuação."""
+    alvo = _normalizar_opcao_select(value)
+    if not alvo:
+        return value
+
+    for option in Select(element).options:
+        option_value = (option.get_attribute("value") or "").strip()
+        option_text = (option.text or "").strip()
+        if _normalizar_opcao_select(option_value) == alvo:
+            return option_value
+        if _normalizar_opcao_select(option_text) == alvo:
+            return option_value or option_text
+
+    return value
 
 
 def scroll_para_elemento(browser: WebDriver, element: WebElement) -> None:
@@ -70,15 +92,19 @@ def selecionar_por_valor_seguro(
 ) -> None:
     def _selecionar():
         scroll_para_elemento(browser, element)
+        valor_resolvido = _resolver_valor_opcao_select(element, value)
         try:
-            Select(element).select_by_value(value)
+            Select(element).select_by_value(valor_resolvido)
         except Exception:
-            browser.execute_script(
-                "arguments[0].value = arguments[1];"
-                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
-                element,
-                value,
-            )
+            try:
+                Select(element).select_by_visible_text(valor_resolvido)
+            except Exception:
+                browser.execute_script(
+                    "arguments[0].value = arguments[1];"
+                    "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
+                    element,
+                    valor_resolvido,
+                )
 
     try:
         _selecionar()
