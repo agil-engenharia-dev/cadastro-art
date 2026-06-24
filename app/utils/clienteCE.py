@@ -36,9 +36,7 @@ class ClienteCE(ClienteSitac):
 
         aguardar_overlay_invisivel(browser)
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
-            EC.element_to_be_clickable(
-                (By.ID, f"cadastrarContratoArt{numero_art}")
-            )
+            EC.element_to_be_clickable((By.ID, f"cadastrarContratoArt{numero_art}"))
         )
         clicar_seguro(browser, element_select)
 
@@ -59,7 +57,7 @@ class ClienteCE(ClienteSitac):
             element_select = WebDriverWait(browser, 5).until(
                 EC.presence_of_element_located((By.ID, "ACAOINSTITUCIONAL"))
             )
-            selecionar_por_valor_seguro(browser, element_select, "11")  # nao optante
+            selecionar_por_valor_seguro(browser, element_select, "1")  # nao optante
         except:
             pass
 
