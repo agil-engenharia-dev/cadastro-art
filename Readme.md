@@ -88,3 +88,21 @@ O executável será gerado na pasta `dist/`:
 | Windows                  | `dist/auto_art_v2.exe` |
 
 > O PyInstaller **não faz cross-compile**: para distribuir no Windows, o build precisa ser feito em uma máquina Windows.
+
+## ☁️ Gerando o `.exe` no GitHub Actions (CI)
+
+O workflow [`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml) gera `auto_art_v2.exe` em um runner `windows-latest`.
+
+**Quando roda**
+
+- Manualmente: Actions → **Build Windows EXE** → **Run workflow**
+- Ao criar/publicar uma tag `v*` (ex.: `v1.2.0`)
+- Ao publicar um GitHub Release
+
+**Como baixar**
+
+1. Abra a execução do workflow em **Actions**
+2. Em **Artifacts**, baixe `auto_art_v2-windows`
+3. Em builds por tag, o `.exe` também é anexado ao Release correspondente
+
+> Os artefatos ficam disponíveis por 14 dias. Para distribuição permanente, use uma tag/Release.
