@@ -160,6 +160,16 @@ class Ui_MainWindow(object):
         )
         self.lineEdit_atividade_profissional.setObjectName("lineEdit_atividade_profissional")
         self.verticalLayout.addWidget(self.lineEdit_atividade_profissional)
+        self.lineEdit_atuacao = QtWidgets.QLineEdit(parent=self.centralwidget)
+        self.lineEdit_atuacao.setMaximumSize(QtCore.QSize(16777215, 40))
+        self.lineEdit_atuacao.setStyleSheet(
+            " border: 1px solid #fd4a24;\n"
+            "border-radius:10px;\n"
+            "padding-left:6px;\n"
+            "color:#fff     "
+        )
+        self.lineEdit_atuacao.setObjectName("lineEdit_atuacao")
+        self.verticalLayout.addWidget(self.lineEdit_atuacao)
         self.checkBox_salvar_erros = QtWidgets.QCheckBox(parent=self.centralwidget)
         self.checkBox_salvar_erros.setStyleSheet("color:#fff;")
         self.checkBox_salvar_erros.setObjectName("checkBox_salvar_erros")
@@ -276,18 +286,22 @@ class Ui_MainWindow(object):
         self.radioButtonCE.setText(_translate("MainWindow", "CE"))
         self.lineEdit.setPlaceholderText(_translate("MainWindow", "Número da ART"))
         self.lineEdit_nivel_atividade.setPlaceholderText(
-            _translate("MainWindow", "Nível Atividade (ex: 16 - Execução)")
+            _translate("MainWindow", "Nível Atividade (ex: 16 ou 16 - Execução)")
         )
         self.lineEdit_nivel_atividade.setText(_translate("MainWindow", "16 - Execução"))
         self.lineEdit_atividade_profissional.setPlaceholderText(
             _translate(
                 "MainWindow",
-                "Atividade profissional (ex: 55 - Execução de serviço técnico)",
+                "Atividade profissional (ex: 46 ou 46 - Execução de Instalação)",
             )
         )
         self.lineEdit_atividade_profissional.setText(
-            _translate("MainWindow", "55 - Execução de serviço técnico")
+            _translate("MainWindow", "46 - Execução de Instalação")
         )
+        self.lineEdit_atuacao.setPlaceholderText(
+            _translate("MainWindow", "Atuação (ex: 15.9.6)")
+        )
+        self.lineEdit_atuacao.setText(_translate("MainWindow", "15.9.6"))
         self.checkBox_salvar_erros.setText(
             _translate("MainWindow", "Salvar relatório de erros")
         )

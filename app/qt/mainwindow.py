@@ -12,9 +12,10 @@ from app.utils.error_report import (
 import os
 
 NIVEL_ATIVIDADE_PADRAO = "16 - Execução"
-ATIVIDADE_PROFISSIONAL_PADRAO = "55 - Execução de serviço técnico"
+ATIVIDADE_PROFISSIONAL_PADRAO = "46 - Execução de Instalação"
+ATUACAO_PADRAO = "15.9.6"
 ALTURA_JANELA_PADRAO = 650
-ALTURA_JANELA_MA = 750
+ALTURA_JANELA_MA = 820
 
 _ESTILO_CAMPO_ERRO = (
     "border: 2px solid #ff4444;"
@@ -31,6 +32,7 @@ _CAMPOS_WIDGET = {
     "numero_art": "lineEdit",
     "nivel_atividade": "lineEdit_nivel_atividade",
     "atividade_profissional": "lineEdit_atividade_profissional",
+    "atuacao": "lineEdit_atuacao",
     "caminho_relatorio_erros": "lineEdit_caminho_erros",
 }
 
@@ -54,6 +56,7 @@ class MainWindow(QMainWindow):
         self.resultado_line_edit = None
         self.resultado_nivel_atividade = None
         self.resultado_atividade_profissional = None
+        self.resultado_atuacao = None
         self.resultado_radio_button = None
         self.resultado_label = None
         self.resultado_login = None
@@ -158,12 +161,15 @@ class MainWindow(QMainWindow):
             self.ui.lineEdit_nivel_atividade.setText(NIVEL_ATIVIDADE_PADRAO)
         if not self.ui.lineEdit_atividade_profissional.text().strip():
             self.ui.lineEdit_atividade_profissional.setText(ATIVIDADE_PROFISSIONAL_PADRAO)
+        if not self.ui.lineEdit_atuacao.text().strip():
+            self.ui.lineEdit_atuacao.setText(ATUACAO_PADRAO)
         self._atualizar_campos_ma(None)
 
     def _atualizar_campos_ma(self, estado):
         visivel = estado == "MA"
         self.ui.lineEdit_nivel_atividade.setVisible(visivel)
         self.ui.lineEdit_atividade_profissional.setVisible(visivel)
+        self.ui.lineEdit_atuacao.setVisible(visivel)
         altura = ALTURA_JANELA_MA if visivel else ALTURA_JANELA_PADRAO
         self.setFixedSize(400, altura)
         self.ui.centralwidget.setMinimumSize(400, altura)
@@ -207,6 +213,7 @@ class MainWindow(QMainWindow):
             dados["atividade_profissional"] = (
                 self.ui.lineEdit_atividade_profissional.text().strip()
             )
+            dados["atuacao"] = self.ui.lineEdit_atuacao.text().strip()
         return dados
 
     def _montar_dados_aceitos(self, dados_parciais: dict) -> dict:
@@ -224,12 +231,15 @@ class MainWindow(QMainWindow):
             "caminho_relatorio_erros": dados_parciais.get("caminho_relatorio_erros") or "",
             "nivel_atividade": None,
             "atividade_profissional": None,
+            "atuacao": None,
         }
         if estado == "MA":
             nivel = (dados_parciais.get("nivel_atividade") or "").strip()
             atividade = (dados_parciais.get("atividade_profissional") or "").strip()
+            atuacao = (dados_parciais.get("atuacao") or "").strip()
             dados["nivel_atividade"] = nivel or NIVEL_ATIVIDADE_PADRAO
             dados["atividade_profissional"] = atividade or ATIVIDADE_PROFISSIONAL_PADRAO
+            dados["atuacao"] = atuacao or ATUACAO_PADRAO
         return dados
 
     def _widget_por_campo(self, campo: str):
@@ -308,6 +318,7 @@ class MainWindow(QMainWindow):
         self.resultado_atividade_profissional = self._dados_aceitos.get(
             "atividade_profissional"
         )
+        self.resultado_atuacao = self._dados_aceitos.get("atuacao")
         self.resultado_label = self._dados_aceitos["dir_planilha"]
         self.resultado_login = self._dados_aceitos["login"]
         self.resultado_senha = self._dados_aceitos["senha"]

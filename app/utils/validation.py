@@ -320,14 +320,21 @@ def validar_dados_formulario(dados: dict) -> list[tuple[str, str]]:
             erros.append(
                 (
                     "nivel_atividade",
-                    "Informe o nível de atividade (ex.: 16 - Execução).",
+                    "Informe o nível de atividade (ex.: 16 ou 16 - Execução).",
                 )
             )
         if not (dados.get("atividade_profissional") or "").strip():
             erros.append(
                 (
                     "atividade_profissional",
-                    "Informe a atividade profissional (ex.: 55 - Execução de serviço técnico).",
+                    "Informe a atividade profissional (ex.: 46 ou 46 - Execução de Instalação).",
+                )
+            )
+        if not (dados.get("atuacao") or "").strip():
+            erros.append(
+                (
+                    "atuacao",
+                    "Informe a atuação (ex.: 15.9.6).",
                 )
             )
 

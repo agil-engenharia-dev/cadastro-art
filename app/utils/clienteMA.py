@@ -24,7 +24,8 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 class ClienteMA(ClienteSitac):
     NIVEL_ATIVIDADE_PADRAO = "16 - Execução"
-    ATIVIDADE_PROFISSIONAL_PADRAO = "55 - Execução de serviço técnico"
+    ATIVIDADE_PROFISSIONAL_PADRAO = "46 - Execução de Instalação"
+    ATUACAO_PADRAO = "15.9.6"
 
     def __init__(self, args):
         super().__init__(args)
@@ -32,6 +33,29 @@ class ClienteMA(ClienteSitac):
         self.URL_ART = (
             "https://servicos-crea-ma.sitac.com.br/app/view/sight/ini?form=Art&id="
         )
+
+    @staticmethod
+    def _codigo_prefixo(s: str) -> str | None:
+        """Extrai código numérico de '16', '16 - Execução' etc."""
+        s = (s or "").strip()
+        if not s:
+            return None
+        m = re.match(r"^(\d+)$", s)
+        if m:
+            return m.group(1)
+        m = re.match(r"^(\d+)\s*[-–]\s*.+$", s)
+        return m.group(1) if m else None
+
+    @staticmethod
+    def _extrair_codigo_atuacao(atuacao: str) -> str:
+        """Extrai código hierárquico de '15.9.6' ou '15.9.6 - descrição'."""
+        s = (atuacao or "").strip()
+        m = re.match(r"^(\d+(?:\.\d+)*)", s)
+        if not m:
+            raise ValueError(
+                f"Atuação inválida: '{atuacao}'. Use o código (ex: 15.9.6)."
+            )
+        return m.group(1)
 
     def _selecionar_opcao_por_titulo(
         self, browser, titulo, padrao, element_id, descricao_campo
@@ -46,13 +70,10 @@ class ClienteMA(ClienteSitac):
             s = re.sub(r"\s+", " ", s).strip()
             return s
 
-        def _codigo_prefixo(s: str) -> str | None:
-            m = re.match(r"^\s*(\d+)\s*[-–]\s*.+$", s or "")
-            return m.group(1) if m else None
-
         titulo = (titulo or padrao).strip()
         titulo_norm = _norm(titulo)
-        titulo_cod = _codigo_prefixo(titulo)
+        titulo_cod = self._codigo_prefixo(titulo)
+        somente_codigo = bool(re.match(r"^\d+$", titulo))
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(
             EC.presence_of_element_located((By.ID, element_id))
@@ -78,22 +99,49 @@ class ClienteMA(ClienteSitac):
             opt_norm_title = _norm(opt_title)
             opt_norm_text = _norm(opt_text)
 
-            # Match flexível: exato / normalizado / por código numérico (ex: "16 - ...")
-            opt_cod = _codigo_prefixo(opt_text) or _codigo_prefixo(opt_title)
+            # Match flexível: exato / normalizado / por código numérico (ex: "16" ou "16 - ...")
+            opt_cod = self._codigo_prefixo(opt_text) or self._codigo_prefixo(opt_title)
             if (
                 opt_title == titulo
                 or opt_text == titulo
-                or (titulo_norm and (opt_norm_title == titulo_norm or opt_norm_text == titulo_norm))
+                or (
+                    titulo_norm
+                    and (opt_norm_title == titulo_norm or opt_norm_text == titulo_norm)
+                )
                 or (titulo_cod and opt_cod and titulo_cod == opt_cod)
-                or (titulo_norm and (titulo_norm in opt_norm_text or titulo_norm in opt_norm_title))
+                or (
+                    not somente_codigo
+                    and titulo_norm
+                    and (
+                        titulo_norm in opt_norm_text or titulo_norm in opt_norm_title
+                    )
+                )
             ):
                 selecionar_por_valor_seguro(browser, element_select, valor)
                 return
 
         raise ValueError(
             f"{descricao_campo} '{titulo}' não encontrado em {element_id}. "
-            f"Use o texto/código da opção (ex: {padrao})."
+            f"Use o texto/código da opção (ex: {padrao} ou só o número)."
         )
+
+    def _selecionar_atuacao(self, browser, atuacao=None):
+        """Navega na árvore de atuação pelo código (ex: 15.9.6 → 15 → 15.9 → 15.9.6)."""
+        codigo = self._extrair_codigo_atuacao(atuacao or self.ATUACAO_PADRAO)
+        partes = codigo.split(".")
+        niveis = [".".join(partes[:i]) for i in range(1, len(partes) + 1)]
+
+        for nivel in niveis:
+            xpath = (
+                f"//*[starts-with(normalize-space(text()), '{nivel} -') "
+                f"or starts-with(normalize-space(text()), '{nivel} –')]"
+            )
+            item = WebDriverWait(browser, 20).until(
+                EC.element_to_be_clickable((By.XPATH, xpath))
+            )
+            browser.execute_script("arguments[0].scrollIntoView();", item)
+            browser.execute_script("arguments[0].click();", item)
+            time.sleep(1)
 
     def _selecionar_nivel_atividade(
         self, browser, nivel_atividade=None, element_id="NIVEL00"
@@ -130,12 +178,14 @@ class ClienteMA(ClienteSitac):
         numero_art,
         nivel_atividade=None,
         atividade_profissional=None,
+        atuacao=None,
         error_report: ErrorReport | None = None,
     ):
         nivel_atividade = (nivel_atividade or self.NIVEL_ATIVIDADE_PADRAO).strip()
         atividade_profissional = (
             atividade_profissional or self.ATIVIDADE_PROFISSIONAL_PADRAO
         ).strip()
+        atuacao = (atuacao or self.ATUACAO_PADRAO).strip()
         browser.get(self.URL_ART + numero_art)
         definir_janela_principal(browser)
         try:
@@ -210,40 +260,9 @@ class ClienteMA(ClienteSitac):
             time.sleep(2)
 
             try:
-                eletronica = WebDriverWait(browser, 20).until(
-                    EC.element_to_be_clickable(
-                        (By.XPATH, "//*[contains(text(), '12 - Eletrônica')]")
-                    )
-                )
-                browser.execute_script("arguments[0].scrollIntoView();", eletronica)
-                browser.execute_script("arguments[0].click();", eletronica)
-                time.sleep(1)
-
-                fibras = WebDriverWait(browser, 20).until(
-                    EC.element_to_be_clickable(
-                        (
-                            By.XPATH,
-                            "//*[contains(text(), '12.7 - Sistemas e Equipamentos de Fibras Ópticas')]",
-                        )
-                    )
-                )
-                browser.execute_script("arguments[0].scrollIntoView();", fibras)
-                browser.execute_script("arguments[0].click();", fibras)
-                time.sleep(1)
-
-                item_alvo = WebDriverWait(browser, 20).until(
-                    EC.element_to_be_clickable(
-                        (
-                            By.XPATH,
-                            "//*[contains(text(), '12.7.1 - de rede de fibra óptica')]",
-                        )
-                    )
-                )
-                browser.execute_script("arguments[0].scrollIntoView();", item_alvo)
-                browser.execute_script("arguments[0].click();", item_alvo)
-                time.sleep(1)
+                self._selecionar_atuacao(browser, atuacao)
             except Exception as e:
-                print(f"Erro ao navegar na árvore: {e}")
+                print(f"Erro ao navegar na árvore de atuação ({atuacao}): {e}")
                 raise
 
         element_select = WebDriverWait(browser, self.TIME_TO_WAIT).until(

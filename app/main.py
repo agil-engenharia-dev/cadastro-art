@@ -329,6 +329,7 @@ if __name__ == "__main__":
                                     atividade_profissional=dados.get(
                                         "atividade_profissional"
                                     ),
+                                    atuacao=dados.get("atuacao"),
                                     error_report=error_report,
                                 )
                             else:

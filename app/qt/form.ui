@@ -319,7 +319,7 @@ padding-left:6px;
 color:#fff     </string>
         </property>
         <property name="placeholderText">
-         <string>Nível (ex: 16 - Execução)</string>
+         <string>Nível (ex: 16 ou 16 - Execução)</string>
         </property>
         <property name="text">
          <string>16 - Execução</string>
@@ -341,10 +341,32 @@ padding-left:6px;
 color:#fff     </string>
         </property>
         <property name="placeholderText">
-         <string>Atividade profissional (ex: 55 - Execução de serviço técnico)</string>
+         <string>Atividade profissional (ex: 46 ou 46 - Execução de Instalação)</string>
         </property>
         <property name="text">
-         <string>55 - Execução de serviço técnico</string>
+         <string>46 - Execução de Instalação</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="lineEdit_atuacao">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>40</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true"> border: 1px solid #fd4a24;
+border-radius:10px;
+padding-left:6px;
+color:#fff     </string>
+        </property>
+        <property name="placeholderText">
+         <string>Atuação (ex: 15.9.6)</string>
+        </property>
+        <property name="text">
+         <string>15.9.6</string>
         </property>
        </widget>
       </item>
