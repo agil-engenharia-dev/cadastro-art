@@ -1,7 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
 from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
+
+# Nome do binário: APP_EXE_NAME (ex.: auto_art_v1.2.0) ou fallback auto_art_v2
+exe_name = os.environ.get('APP_EXE_NAME', 'auto_art_v2').strip() or 'auto_art_v2'
 
 # Selenium 4+ usa imports lazy (webdriver.Chrome); PyInstaller não os detecta sozinho.
 selenium_webdriver_imports = (
@@ -53,7 +57,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='auto_art_v2',
+    name=exe_name,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

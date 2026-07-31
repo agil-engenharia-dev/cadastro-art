@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag da release (ex.: v1.2.0). Se preenchida, cria/atualiza o Release com o .exe."
+        description: "Tag da release (ex.: v1.2.0). Cria/atualiza o Release com o .exe."
         required: true
         type: string
+      changelog:
+        description: "Changelog da release (Markdown). Ex.: - Correção X\\n- Melhoria Y"
+        required: false
+        type: string
+        default: ""
   push:
     tags:
       - "v*"
@@ -25,7 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve release tag
+      - name: Resolve release tag and exe name
         id: meta
         shell: bash
         run: |
@@ -35,7 +40,6 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
           fi
 
-          # Remove espaços e garante prefixo v opcionalmente aceito como informado
           TAG="$(echo "$TAG" | xargs)"
 
           if [ -z "$TAG" ]; then
@@ -43,8 +47,32 @@ jobs:
             exit 1
           fi
 
+          # Tag v1.2.0 → auto_art_v1.2.0.exe
+          EXE_NAME="auto_art_${TAG}"
+          EXE_FILE="${EXE_NAME}.exe"
+
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Resolved tag: $TAG"
+          echo "exe_name=$EXE_NAME" >> "$GITHUB_OUTPUT"
+          echo "exe_file=$EXE_FILE" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=$TAG exe=$EXE_FILE"
+
+      - name: Prepare release notes
+        id: notes
+        shell: bash
+        env:
+          CHANGELOG: ${{ github.event_name == 'workflow_dispatch' && inputs.changelog || '' }}
+        run: |
+          # Converte \n literais (UI do Actions) em quebras de linha reais
+          NOTES="$(printf '%b' "$CHANGELOG" | sed 's/\r$//')"
+
+          if [ -n "$(echo "$NOTES" | xargs)" ]; then
+            printf '%s\n' "$NOTES" > release_notes.md
+            echo "has_changelog=true" >> "$GITHUB_OUTPUT"
+            echo "Changelog informado — será usado no body do Release."
+          else
+            echo "has_changelog=false" >> "$GITHUB_OUTPUT"
+            echo "Sem changelog — notes serão geradas automaticamente."
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -60,22 +88,27 @@ jobs:
           pipenv install --dev pyinstaller
 
       - name: Build executable with PyInstaller
+        env:
+          APP_EXE_NAME: ${{ steps.meta.outputs.exe_name }}
         run: pipenv run pyinstaller build.spec --noconfirm
 
       - name: Verify executable
         shell: pwsh
+        env:
+          EXE_FILE: ${{ steps.meta.outputs.exe_file }}
         run: |
-          if (-not (Test-Path "dist/auto_art_v2.exe")) {
-            Write-Error "Executable not found at dist/auto_art_v2.exe"
+          $path = "dist/$env:EXE_FILE"
+          if (-not (Test-Path $path)) {
+            Write-Error "Executable not found at $path"
             exit 1
           }
-          Get-Item "dist/auto_art_v2.exe" | Format-List Name, Length, LastWriteTime
+          Get-Item $path | Format-List Name, Length, LastWriteTime
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: auto_art_v2-windows-${{ steps.meta.outputs.tag }}
-          path: dist/auto_art_v2.exe
+          name: ${{ steps.meta.outputs.exe_name }}-windows
+          path: dist/${{ steps.meta.outputs.exe_file }}
           if-no-files-found: error
           retention-days: 14
 
@@ -84,7 +117,8 @@ jobs:
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: ${{ steps.meta.outputs.tag }}
-          files: dist/auto_art_v2.exe
+          files: dist/${{ steps.meta.outputs.exe_file }}
           fail_on_unmatched_files: true
-          generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.has_changelog == 'true' && 'release_notes.md' || '' }}
+          generate_release_notes: ${{ steps.notes.outputs.has_changelog != 'true' }}
           target_commitish: ${{ github.sha }}

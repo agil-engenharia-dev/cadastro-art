@@ -91,20 +91,20 @@ O executável será gerado na pasta `dist/`:
 
 ## ☁️ Gerando o `.exe` no GitHub Actions (CI)
 
-O workflow [`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml) gera `auto_art_v2.exe` em um runner `windows-latest`.
+O workflow [`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml) gera o `.exe` em um runner `windows-latest`, com o nome baseado na tag informada (ex.: tag `v1.2.0` → `auto_art_v1.2.0.exe`).
 
 **Quando roda**
 
-- Manualmente: Actions → **Build Windows EXE** → **Run workflow** → informe a **tag** (ex.: `v1.2.0`)
+- Manualmente: Actions → **Build Windows EXE** → **Run workflow** → informe a **tag** (ex.: `v1.2.0`) e, se quiser, o **changelog**
 - Ao criar/publicar uma tag `v*` (ex.: `v1.2.0`)
 - Ao publicar um GitHub Release
 
-No disparo manual, o campo **tag** é obrigatório: o workflow cria/atualiza o Release com essa tag e anexa o `.exe`.
+No disparo manual, o campo **tag** é obrigatório e o **changelog** é opcional (Markdown). Se o changelog for informado, ele vira o texto do Release; caso contrário, o GitHub gera as notes automaticamente.
 
 **Como baixar**
 
 1. Abra a execução do workflow em **Actions**
-2. Em **Artifacts**, baixe `auto_art_v2-windows-<tag>`
+2. Em **Artifacts**, baixe `auto_art_<tag>-windows` (ex.: `auto_art_v1.2.0-windows`)
 3. Ou baixe o `.exe` na página do **Release** correspondente
 
 > Os artefatos ficam disponíveis por 14 dias. O Release mantém o `.exe` de forma permanente.
