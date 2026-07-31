@@ -95,14 +95,16 @@ O workflow [`.github/workflows/build-windows.yml`](.github/workflows/build-windo
 
 **Quando roda**
 
-- Manualmente: Actions → **Build Windows EXE** → **Run workflow**
+- Manualmente: Actions → **Build Windows EXE** → **Run workflow** → informe a **tag** (ex.: `v1.2.0`)
 - Ao criar/publicar uma tag `v*` (ex.: `v1.2.0`)
 - Ao publicar um GitHub Release
+
+No disparo manual, o campo **tag** é obrigatório: o workflow cria/atualiza o Release com essa tag e anexa o `.exe`.
 
 **Como baixar**
 
 1. Abra a execução do workflow em **Actions**
-2. Em **Artifacts**, baixe `auto_art_v2-windows`
-3. Em builds por tag, o `.exe` também é anexado ao Release correspondente
+2. Em **Artifacts**, baixe `auto_art_v2-windows-<tag>`
+3. Ou baixe o `.exe` na página do **Release** correspondente
 
-> Os artefatos ficam disponíveis por 14 dias. Para distribuição permanente, use uma tag/Release.
+> Os artefatos ficam disponíveis por 14 dias. O Release mantém o `.exe` de forma permanente.
